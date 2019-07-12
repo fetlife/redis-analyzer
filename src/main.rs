@@ -97,7 +97,6 @@ pub fn gather_stats(prefix_stats: &mut PrefixStats, dbsize: usize, redis: &mut r
 
 pub fn gather_memory_usage_stats(prefix_stats: &mut PrefixStats, redis: &mut redis::Connection) {
     let mut cursor: u64 = 0;
-    let mut total = 0;
     let mut iterations = 0;
     let scan_size = 100;
     let scan_size_arg = format!("{}", scan_size);
@@ -132,12 +131,8 @@ pub fn gather_memory_usage_stats(prefix_stats: &mut PrefixStats, redis: &mut red
             .expect("memory usage command");
 
         for (key, memory_usage) in keys.iter().zip(memory_usages.iter()) {
-            prefix_stats.memory_usage += memory_usage;
-
             record_memory_usage(prefix_stats, key, *memory_usage);
         }
-
-        total += memory_usages.iter().fold(0, |a, b| a + b);
 
         iterations += scan_size;
 
@@ -145,8 +140,6 @@ pub fn gather_memory_usage_stats(prefix_stats: &mut PrefixStats, redis: &mut red
             break;
         }
     }
-
-    dbg!(total);
 }
 
 pub fn record_memory_usage(prefix_stats: &mut PrefixStats, key: &str, memory_usage: usize) {
