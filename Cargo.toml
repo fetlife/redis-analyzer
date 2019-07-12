@@ -1,0 +1,12 @@
+[package]
+name = "redis-analyzer"
+version = "0.1.0"
+authors = ["FetLife <dev@fetlife.com>"]
+edition = "2018"
+
+[dependencies]
+clap = "*"
+frequency = "*"
+frequency-hashmap = "*"
+regex = "*"
+redis = "0.10.0"
