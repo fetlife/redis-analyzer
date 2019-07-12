@@ -1,0 +1,12 @@
+name: redis-analyzer
+version: '0.1.0'
+author: FetLife <dev@fetlifecom>
+about: Does awesome things
+args:
+  - urls:
+      short: u
+      long: urls
+      value_name: urls
+      help: List of URLs to scan
+      takes_value: true
+      required: true

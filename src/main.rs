@@ -1,3 +1,7 @@
+#[macro_use]
+extern crate clap;
+
+use clap::App;
 use frequency::Frequency;
 use frequency_hashmap::HashMapFrequency;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -26,67 +30,107 @@ impl PrefixStats {
     }
 }
 
+pub struct Database {
+    pub keys_count: usize,
+    pub connection: redis::Connection,
+}
+
+pub struct DatabaseCollection {
+    pub databases: Vec<Database>,
+    pub all_keys_count: usize,
+}
+
 fn main() {
-    let client = redis::Client::open("redis://127.0.0.1:6379/12").expect("connect to redis");
-    let mut con = client.get_connection().expect("getting connection");
+    let yaml = load_yaml!("cli.yml");
+    let matches = App::from_yaml(yaml).get_matches();
 
-    let dbsize: usize = redis::cmd("DBSIZE")
-        .query(&mut con)
-        .expect("getting dbsize");
+    let urls: Vec<&str> = matches.value_of("urls").unwrap().split(",").collect();
 
-    let mut top_stats = PrefixStats::new(None, 0, dbsize);
+    let databases: Vec<Database> = urls
+        .iter()
+        .map(|host| {
+            let client = redis::Client::open(format!("redis://{}", host).as_ref())
+                .expect("connect to redis");
+            let connection = client.get_connection().expect("getting connection");
+            let keys_count: usize = redis::cmd("DBSIZE")
+                .query(&connection)
+                .expect("getting dbsize");
 
-    gather_stats(&mut top_stats, dbsize, &mut con);
+            Database {
+                keys_count,
+                connection,
+            }
+        })
+        .collect();
+
+    let all_keys_count: usize = databases
+        .iter()
+        .fold(0, |acc, database| acc + database.keys_count);
+
+    let mut collection = DatabaseCollection {
+        databases,
+        all_keys_count,
+    };
+
+    let mut top_stats = PrefixStats::new(None, 0, all_keys_count);
+
+    gather_stats(&mut top_stats, &mut collection);
 
     println!("");
 
-    gather_memory_usage_stats(&mut top_stats, &mut con);
+    gather_memory_usage_stats(&mut top_stats, &mut collection);
 
     println!("");
 
     print_stats(&top_stats, top_stats.memory_usage);
 }
 
-pub fn gather_stats(prefix_stats: &mut PrefixStats, dbsize: usize, redis: &mut redis::Connection) {
-    let bar = ProgressBar::new(prefix_stats.count as u64);
-
-    bar.set_message(&format!(
-        "Scanning {}",
-        prefix_stats.value.as_ref().unwrap_or(&"root".to_string()),
-    ));
-    bar.set_style(ProgressStyle::default_bar().template(
-        "{msg}\n[{elapsed_precise}] {wide_bar} {pos}/{len} ({percent}%) [ETA: {eta_precise}]",
-    ));
-
-    let delimiter = Regex::new(r"[/:]+").unwrap();
-
-    let mut scan_command = redis::cmd("SCAN")
-        .cursor_arg(0)
-        .arg("COUNT")
-        .arg("100")
-        .clone();
-
-    if let Some(p) = &prefix_stats.value {
-        scan_command = scan_command.arg("MATCH").arg(format!("{}*", p)).clone();
-    }
-
-    let iter: redis::Iter<String> = scan_command.clone().iter(redis).expect("running scan");
-
+pub fn gather_stats(prefix_stats: &mut PrefixStats, collection: &mut DatabaseCollection) {
     let mut frequency: HashMapFrequency<String> = HashMapFrequency::new();
 
-    for (i, key) in iter.enumerate() {
-        if i % 10_000 == 0 && i > 0 {
-            bar.inc(10_000);
+    println!(
+        "Scanning {}",
+        prefix_stats.value.as_ref().unwrap_or(&"root".to_string())
+    );
+
+    let bar = ProgressBar::new(prefix_stats.count as u64);
+
+    for database in collection.databases.iter_mut() {
+        bar.set_style(ProgressStyle::default_bar().template(
+            "[{elapsed_precise}] {wide_bar} {pos}/{len} ({percent}%) [ETA: {eta_precise}]",
+        ));
+
+        let delimiter = Regex::new(r"[/:]+").unwrap();
+
+        let mut scan_command = redis::cmd("SCAN")
+            .cursor_arg(0)
+            .arg("COUNT")
+            .arg("100")
+            .clone();
+
+        if let Some(p) = &prefix_stats.value {
+            scan_command = scan_command.arg("MATCH").arg(format!("{}*", p)).clone();
         }
 
-        let mut delimiter_positions = delimiter.find_iter(&key);
+        let iter: redis::Iter<String> = scan_command
+            .clone()
+            .iter(&database.connection)
+            .expect("running scan");
 
-        let prefix = match delimiter_positions.nth(prefix_stats.depth) {
-            None => key,
-            Some(position) => unsafe { key.get_unchecked(0..position.start()) }.to_string(),
-        };
+        for (i, key) in iter.enumerate() {
+            if i % 10_000 == 0 && i > 0 {
+                bar.inc(10_000);
+            }
 
-        frequency.increment(prefix);
+            let mut delimiter_positions = delimiter.find_iter(&key);
+
+            let prefix = match delimiter_positions.nth(prefix_stats.depth) {
+                None => key,
+                Some(position) => unsafe { key.get_unchecked(0..position.start()) }.to_string(),
+            };
+
+            frequency.increment(prefix);
+        }
     }
 
     bar.finish();
@@ -95,8 +139,8 @@ pub fn gather_stats(prefix_stats: &mut PrefixStats, dbsize: usize, redis: &mut r
         let mut subkey = PrefixStats::new(Some(prefix), prefix_stats.depth + 1, *count);
 
         // if key count is larger than 1% of all keys count
-        if *count > dbsize / 100 {
-            gather_stats(&mut subkey, dbsize, redis);
+        if *count > collection.all_keys_count / 100 {
+            gather_stats(&mut subkey, collection);
             prefix_stats.subkeys.insert(prefix.to_string(), subkey);
         } else if prefix_stats.depth == 0 && *count > 100 {
             prefix_stats.subkeys.insert(prefix.to_string(), subkey);
@@ -104,7 +148,10 @@ pub fn gather_stats(prefix_stats: &mut PrefixStats, dbsize: usize, redis: &mut r
     }
 }
 
-pub fn gather_memory_usage_stats(prefix_stats: &mut PrefixStats, redis: &mut redis::Connection) {
+pub fn gather_memory_usage_stats(
+    prefix_stats: &mut PrefixStats,
+    collection: &mut DatabaseCollection,
+) {
     let mut cursor: u64 = 0;
     let mut iterations = 0;
     let scan_size = 100;
@@ -117,43 +164,46 @@ pub fn gather_memory_usage_stats(prefix_stats: &mut PrefixStats, redis: &mut red
         "{msg}\n[{elapsed_precise}] {wide_bar} {pos}/{len} ({percent}%) [ETA: {eta_precise}]",
     ));
 
-    loop {
-        if iterations % 1_000 == 0 && iterations > 0 {
-            bar.inc(1_000)
-        }
+    for database in collection.databases.iter_mut() {
+        loop {
+            if iterations % 1_000 == 0 && iterations > 0 {
+                bar.inc(1_000)
+            }
 
-        let scan_command = redis::cmd("SCAN")
-            .cursor_arg(cursor)
-            .arg("COUNT")
-            .arg(&scan_size_arg)
-            .clone();
-
-        let (new_cursor, keys): (u64, Vec<String>) = scan_command.query(redis).expect("scan");
-
-        cursor = new_cursor;
-
-        let mut memory_usage_command = redis::pipe().clone();
-
-        for key in keys.iter() {
-            memory_usage_command = memory_usage_command
-                .cmd("MEMORY")
-                .arg("USAGE")
-                .arg(key)
+            let scan_command = redis::cmd("SCAN")
+                .cursor_arg(cursor)
+                .arg("COUNT")
+                .arg(&scan_size_arg)
                 .clone();
-        }
 
-        let memory_usages: Vec<usize> = memory_usage_command
-            .query(redis)
-            .expect("memory usage command");
+            let (new_cursor, keys): (u64, Vec<String>) =
+                scan_command.query(&database.connection).expect("scan");
 
-        for (key, memory_usage) in keys.iter().zip(memory_usages.iter()) {
-            record_memory_usage(prefix_stats, key, *memory_usage);
-        }
+            cursor = new_cursor;
 
-        iterations += scan_size;
+            let mut memory_usage_command = redis::pipe().clone();
 
-        if cursor == 0 {
-            break;
+            for key in keys.iter() {
+                memory_usage_command = memory_usage_command
+                    .cmd("MEMORY")
+                    .arg("USAGE")
+                    .arg(key)
+                    .clone();
+            }
+
+            let memory_usages: Vec<usize> = memory_usage_command
+                .query(&database.connection)
+                .expect("memory usage command");
+
+            iterations += keys.len();
+
+            for (key, memory_usage) in keys.iter().zip(memory_usages.iter()) {
+                record_memory_usage(prefix_stats, key, *memory_usage);
+            }
+
+            if cursor == 0 {
+                break;
+            }
         }
     }
 
