@@ -1,5 +1,7 @@
 # Memory Analyzer
 
+![preview](preview.gif)
+
 Example output:
 
 ```
