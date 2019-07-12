@@ -6,7 +6,14 @@ args:
   - urls:
       short: u
       long: urls
-      value_name: urls
+      value_name: URLS
       help: List of URLs to scan
       takes_value: true
       required: true
+  - separators:
+      short: s
+      long: separators
+      value_name: separators
+      help: 'List of key separators (default: ":/|" )'
+      takes_value: true
+      required: false

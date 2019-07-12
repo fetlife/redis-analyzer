@@ -4,8 +4,7 @@ extern crate clap;
 use clap::App;
 use frequency::Frequency;
 use frequency_hashmap::HashMapFrequency;
-use indicatif::{ProgressBar, ProgressStyle};
-use pretty_bytes::converter::convert;
+use indicatif::{HumanBytes, ProgressBar, ProgressStyle};
 use redis;
 use regex::Regex;
 use std::collections::HashMap;
@@ -35,9 +34,16 @@ pub struct Database {
     pub connection: redis::Connection,
 }
 
-pub struct DatabaseCollection {
+pub struct Config {
     pub databases: Vec<Database>,
     pub all_keys_count: usize,
+    pub separators: String,
+}
+
+impl Config {
+    pub fn separators_regex(&self) -> Regex {
+        Regex::new(&format!("[{}]+", self.separators)).unwrap()
+    }
 }
 
 fn main() {
@@ -45,6 +51,7 @@ fn main() {
     let matches = App::from_yaml(yaml).get_matches();
 
     let urls: Vec<&str> = matches.value_of("urls").unwrap().split(",").collect();
+    let separators = matches.value_of("separators").unwrap_or(":/|");
 
     let databases: Vec<Database> = urls
         .iter()
@@ -67,40 +74,39 @@ fn main() {
         .iter()
         .fold(0, |acc, database| acc + database.keys_count);
 
-    let mut collection = DatabaseCollection {
+    let mut config = Config {
         databases,
         all_keys_count,
+        separators: separators.to_string(),
     };
 
     let mut top_stats = PrefixStats::new(None, 0, all_keys_count);
 
-    gather_stats(&mut top_stats, &mut collection);
+    gather_stats(&mut top_stats, &mut config);
 
     println!("");
 
-    gather_memory_usage_stats(&mut top_stats, &mut collection);
+    gather_memory_usage_stats(&mut top_stats, &mut config);
 
     println!("");
 
     print_stats(&top_stats, top_stats.memory_usage);
 }
 
-pub fn gather_stats(prefix_stats: &mut PrefixStats, collection: &mut DatabaseCollection) {
-    let mut frequency: HashMapFrequency<String> = HashMapFrequency::new();
-
+pub fn gather_stats(prefix_stats: &mut PrefixStats, config: &mut Config) {
     println!(
         "Scanning {}",
         prefix_stats.value.as_ref().unwrap_or(&"root".to_string())
     );
 
+    let mut frequency: HashMapFrequency<String> = HashMapFrequency::new();
+    let delimiter = config.separators_regex();
     let bar = ProgressBar::new(prefix_stats.count as u64);
 
-    for database in collection.databases.iter_mut() {
+    for database in config.databases.iter_mut() {
         bar.set_style(ProgressStyle::default_bar().template(
             "[{elapsed_precise}] {wide_bar} {pos}/{len} ({percent}%) [ETA: {eta_precise}]",
         ));
-
-        let delimiter = Regex::new(r"[/:]+").unwrap();
 
         let mut scan_command = redis::cmd("SCAN")
             .cursor_arg(0)
@@ -139,8 +145,8 @@ pub fn gather_stats(prefix_stats: &mut PrefixStats, collection: &mut DatabaseCol
         let mut subkey = PrefixStats::new(Some(prefix), prefix_stats.depth + 1, *count);
 
         // if key count is larger than 1% of all keys count
-        if *count > collection.all_keys_count / 100 {
-            gather_stats(&mut subkey, collection);
+        if *count > config.all_keys_count / 100 {
+            gather_stats(&mut subkey, config);
             prefix_stats.subkeys.insert(prefix.to_string(), subkey);
         } else if prefix_stats.depth == 0 && *count > 100 {
             prefix_stats.subkeys.insert(prefix.to_string(), subkey);
@@ -148,10 +154,7 @@ pub fn gather_stats(prefix_stats: &mut PrefixStats, collection: &mut DatabaseCol
     }
 }
 
-pub fn gather_memory_usage_stats(
-    prefix_stats: &mut PrefixStats,
-    collection: &mut DatabaseCollection,
-) {
+pub fn gather_memory_usage_stats(prefix_stats: &mut PrefixStats, config: &mut Config) {
     let mut cursor: u64 = 0;
     let mut iterations = 0;
     let scan_size = 100;
@@ -164,7 +167,7 @@ pub fn gather_memory_usage_stats(
         "{msg}\n[{elapsed_precise}] {wide_bar} {pos}/{len} ({percent}%) [ETA: {eta_precise}]",
     ));
 
-    for database in collection.databases.iter_mut() {
+    for database in config.databases.iter_mut() {
         loop {
             if iterations % 1_000 == 0 && iterations > 0 {
                 bar.inc(1_000)
