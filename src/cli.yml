@@ -1,7 +1,6 @@
 name: redis-analyzer
 version: '0.1.0'
-author: FetLife <dev@fetlifecom>
-about: Does awesome things
+about: Analyzes keys in Redis to produce breakdown of the most frequent prefixes.
 args:
   - urls:
       short: u
@@ -13,7 +12,14 @@ args:
   - separators:
       short: s
       long: separators
-      value_name: separators
+      value_name: SEPARATORS
       help: 'List of key separators (default: ":/|" )'
+      takes_value: true
+      required: false
+  - max_depth:
+      short: d
+      long: max-depth
+      value_name: MAX_DEPTH
+      help: 'Max key depth to examine (default: not limited)'
       takes_value: true
       required: false

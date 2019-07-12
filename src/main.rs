@@ -38,6 +38,7 @@ pub struct Config {
     pub databases: Vec<Database>,
     pub all_keys_count: usize,
     pub separators: String,
+    pub max_depth: usize,
 }
 
 impl Config {
@@ -52,6 +53,9 @@ fn main() {
 
     let urls: Vec<&str> = matches.value_of("urls").unwrap().split(",").collect();
     let separators = matches.value_of("separators").unwrap_or(":/|");
+    let max_depth = matches
+        .value_of("max_depth")
+        .map_or(999, |s| s.parse().expect("max-depth needs to be a number"));
 
     let databases: Vec<Database> = urls
         .iter()
@@ -78,6 +82,7 @@ fn main() {
         databases,
         all_keys_count,
         separators: separators.to_string(),
+        max_depth,
     };
 
     let mut top_stats = PrefixStats::new(None, 0, all_keys_count);
@@ -145,7 +150,7 @@ pub fn gather_stats(prefix_stats: &mut PrefixStats, config: &mut Config) {
         let mut subkey = PrefixStats::new(Some(prefix), prefix_stats.depth + 1, *count);
 
         // if key count is larger than 1% of all keys count
-        if *count > config.all_keys_count / 100 {
+        if prefix_stats.depth < config.max_depth && *count > config.all_keys_count / 100 {
             gather_stats(&mut subkey, config);
             prefix_stats.subkeys.insert(prefix.to_string(), subkey);
         } else if prefix_stats.depth == 0 && *count > 100 {
