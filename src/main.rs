@@ -1,5 +1,6 @@
 use frequency::Frequency;
 use frequency_hashmap::HashMapFrequency;
+use indicatif::{ProgressBar, ProgressStyle};
 use pretty_bytes::converter::convert;
 use redis;
 use regex::Regex;
@@ -41,14 +42,21 @@ fn main() {
 
     gather_memory_usage_stats(&mut top_stats, &mut con);
 
+    println!("");
+
     print_stats(&top_stats, top_stats.memory_usage);
 }
 
 pub fn gather_stats(prefix_stats: &mut PrefixStats, dbsize: usize, redis: &mut redis::Connection) {
-    println!(
+    let bar = ProgressBar::new(prefix_stats.count as u64);
+
+    bar.set_message(&format!(
         "Scanning {}",
         prefix_stats.value.as_ref().unwrap_or(&"root".to_string()),
-    );
+    ));
+    bar.set_style(ProgressStyle::default_bar().template(
+        "{msg}\n[{elapsed_precise}] {wide_bar} {pos}/{len} ({percent}%) [ETA: {eta_precise}]",
+    ));
 
     let delimiter = Regex::new(r"[/:]+").unwrap();
 
@@ -66,11 +74,10 @@ pub fn gather_stats(prefix_stats: &mut PrefixStats, dbsize: usize, redis: &mut r
 
     let mut frequency: HashMapFrequency<String> = HashMapFrequency::new();
 
-    for (_i, key) in iter.enumerate() {
-        // if i % 100_000 == 0 && i > 0 {
-        //     println!("{}", i);
-        //     // break;
-        // }
+    for (i, key) in iter.enumerate() {
+        if i % 10_000 == 0 && i > 0 {
+            bar.inc(10_000);
+        }
 
         let mut delimiter_positions = delimiter.find_iter(&key);
 
@@ -81,6 +88,8 @@ pub fn gather_stats(prefix_stats: &mut PrefixStats, dbsize: usize, redis: &mut r
 
         frequency.increment(prefix);
     }
+
+    bar.finish();
 
     for (prefix, count) in frequency.iter() {
         let mut subkey = PrefixStats::new(Some(prefix), prefix_stats.depth + 1, *count);
@@ -101,9 +110,16 @@ pub fn gather_memory_usage_stats(prefix_stats: &mut PrefixStats, redis: &mut red
     let scan_size = 100;
     let scan_size_arg = format!("{}", scan_size);
 
+    let bar = ProgressBar::new(prefix_stats.count as u64);
+
+    bar.set_message("Memory scanning");
+    bar.set_style(ProgressStyle::default_bar().template(
+        "{msg}\n[{elapsed_precise}] {wide_bar} {pos}/{len} ({percent}%) [ETA: {eta_precise}]",
+    ));
+
     loop {
-        if iterations % 10_000 == 0 {
-            println!("memory scan: {}", iterations);
+        if iterations % 1_000 == 0 && iterations > 0 {
+            bar.inc(1_000)
         }
 
         let scan_command = redis::cmd("SCAN")
@@ -140,6 +156,8 @@ pub fn gather_memory_usage_stats(prefix_stats: &mut PrefixStats, redis: &mut red
             break;
         }
     }
+
+    bar.finish();
 }
 
 pub fn record_memory_usage(prefix_stats: &mut PrefixStats, key: &str, memory_usage: usize) {
