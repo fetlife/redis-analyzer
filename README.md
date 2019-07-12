@@ -1,5 +1,28 @@
 # Memory Analyzer
 
+## Usage
+
+```
+# redis-analyzer --help
+
+redis-analyzer 0.1.0
+Analyzes keys in Redis to produce breakdown of the most frequent prefixes.
+
+USAGE:
+    redis-analyzer [OPTIONS] --urls <URLS>
+
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+OPTIONS:
+    -d, --max-depth <MAX_DEPTH>      Max key depth to examine (default: not limited)
+    -s, --separators <SEPARATORS>    List of key separators (default: ":/|" )
+    -u, --urls <URLS>                List of URLs to scan
+```
+
+## Preview
+
 ![preview](preview.gif)
 
 Example output:
