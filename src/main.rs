@@ -230,7 +230,7 @@ pub fn print_stats(prefix_stats: &PrefixStats, parent_memory_usage: usize) {
         "",
         prefix_stats.value.as_ref().unwrap_or(&"root".to_string()),
         prefix_stats.count,
-        convert(prefix_stats.memory_usage as f64),
+        HumanBytes(prefix_stats.memory_usage as u64),
         prefix_stats.memory_usage as f32 / parent_memory_usage as f32 * 100.,
         indent = prefix_stats.depth * 2,
     );
@@ -264,7 +264,7 @@ pub fn print_stats(prefix_stats: &PrefixStats, parent_memory_usage: usize) {
         "",
         "other",
         other,
-        convert(other_memory_usage as f64),
+        HumanBytes(other_memory_usage as u64),
         other_percentage,
         indent = (prefix_stats.depth + 1) * 2,
     );
