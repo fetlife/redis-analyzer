@@ -23,10 +23,18 @@ args:
       help: 'Maximum key depth to examine (default: not limited)'
       takes_value: true
       required: false
+  - min_prefix_frequency:
+      short: f
+      long: min-prefix-frequency
+      value_name: MIN_PREFIX_FREQUENCY_PERCENTAGE
+      help: 'Minimum prefix frequency in percentages for prefix to be included in the result (default: 1)'
+      takes_value: true
+      required: false
   - max_parallelism:
       short: p
       long: max-parallelism
       value_name: MAX_PARALLELISM
       help: 'Maximum number of hosts scanned at the same time (default: number of logical CPUs)'
+      takes_value: true
       required: false
 

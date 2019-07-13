@@ -14,17 +14,17 @@ use std::sync::{Arc, Mutex};
 pub struct Prefix {
     pub value: Option<String>,
     pub depth: usize,
-    pub count: usize,
+    pub keys_count: usize,
     pub memory_usage: usize,
     pub children: HashMap<String, Prefix>,
 }
 
 impl Prefix {
-    pub fn new(prefix: Option<&str>, depth: usize, count: usize) -> Self {
+    pub fn new(prefix: Option<&str>, depth: usize, keys_count: usize) -> Self {
         Self {
             value: prefix.map(|s| s.to_string()),
             depth,
-            count,
+            keys_count,
             memory_usage: 0,
             children: HashMap::new(),
         }
@@ -43,6 +43,8 @@ pub struct Config {
     pub all_keys_count: usize,
     pub separators: String,
     pub max_depth: usize,
+    pub max_parallelism: usize,
+    pub min_prefix_frequency: f32,
 }
 
 impl Config {
@@ -55,11 +57,16 @@ impl Config {
         let max_depth = arg_matches
             .value_of("max_depth")
             .map_or(999, |s| s.parse().expect("max-depth needs to be a number"));
-
         let max_parallelism = arg_matches
             .value_of("max_parallelism")
             .map_or(num_cpus::get(), |s| {
                 s.parse().expect("max-parallelism needs to be a number")
+            });
+        let min_prefix_frequency = arg_matches
+            .value_of("min_prefix_frequency")
+            .map_or(1., |s| {
+                s.parse()
+                    .expect("min-prefix-frequency needs to be a number")
             });
 
         rayon::ThreadPoolBuilder::new()
@@ -95,6 +102,8 @@ impl Config {
             all_keys_count,
             separators: separators.to_string(),
             max_depth,
+            max_parallelism,
+            min_prefix_frequency,
         }
     }
     pub fn separators_regex(&self) -> Regex {
@@ -107,18 +116,18 @@ fn main() {
 
     let mut root_prefix = Prefix::new(None, 0, config.all_keys_count);
 
-    gather_stats(&mut root_prefix, &mut config);
+    gather_stats(&mut config, &mut root_prefix);
 
     println!("");
 
-    gather_memory_usage_stats(&mut root_prefix, &mut config);
+    gather_memory_usage_stats(&mut config, &mut root_prefix);
 
     println!("");
 
-    print_stats(&root_prefix, root_prefix.memory_usage);
+    print_stats(&config, &root_prefix, &root_prefix);
 }
 
-pub fn gather_stats(prefix_stats: &mut Prefix, config: &mut Config) {
+pub fn gather_stats(config: &mut Config, prefix_stats: &mut Prefix) {
     println!(
         "Scanning {}",
         prefix_stats.value.as_ref().unwrap_or(&"root".to_string())
@@ -127,7 +136,7 @@ pub fn gather_stats(prefix_stats: &mut Prefix, config: &mut Config) {
     let frequency: HashMapFrequency<String> = HashMapFrequency::new();
     let frequency_mutex = Arc::new(Mutex::new(frequency));
     let delimiter = config.separators_regex();
-    let bar = ProgressBar::new(prefix_stats.count as u64);
+    let bar = ProgressBar::new(prefix_stats.keys_count as u64);
 
     config.databases.par_iter_mut().for_each(|database| {
         bar.set_style(ProgressStyle::default_bar().template(
@@ -167,26 +176,33 @@ pub fn gather_stats(prefix_stats: &mut Prefix, config: &mut Config) {
 
     bar.finish();
 
-    for (prefix, count) in frequency_mutex.lock().unwrap().iter() {
-        let mut child = Prefix::new(Some(prefix), prefix_stats.depth + 1, *count);
+    for (prefix_value, count) in frequency_mutex.lock().unwrap().iter() {
+        let mut child = Prefix::new(Some(prefix_value), prefix_stats.depth + 1, *count);
 
-        // if key count is larger than 1% of all keys count
-        if prefix_stats.depth < config.max_depth && *count > config.all_keys_count / 100 {
-            gather_stats(&mut child, config);
-            prefix_stats.children.insert(prefix.to_string(), child);
+        let child_absolute_frequency = *count as f32 / config.all_keys_count as f32 * 100.;
+
+        if prefix_stats.depth < config.max_depth
+            && child_absolute_frequency > config.min_prefix_frequency
+        {
+            gather_stats(config, &mut child);
+            prefix_stats
+                .children
+                .insert(prefix_value.to_string(), child);
         } else if prefix_stats.depth == 0 && *count > 100 {
-            prefix_stats.children.insert(prefix.to_string(), child);
+            prefix_stats
+                .children
+                .insert(prefix_value.to_string(), child);
         }
     }
 }
 
-pub fn gather_memory_usage_stats(prefix_stats: &mut Prefix, config: &mut Config) {
+pub fn gather_memory_usage_stats(config: &mut Config, prefix_stats: &mut Prefix) {
     let mut cursor: u64 = 0;
     let mut iterations = 0;
     let scan_size = 100;
     let scan_size_arg = format!("{}", scan_size);
 
-    let bar = ProgressBar::new(prefix_stats.count as u64);
+    let bar = ProgressBar::new(prefix_stats.keys_count as u64);
 
     bar.set_message("Memory scanning");
     bar.set_style(ProgressStyle::default_bar().template(
@@ -253,48 +269,50 @@ pub fn record_memory_usage(prefix_stats: &mut Prefix, key: &str, memory_usage: u
     }
 }
 
-pub fn print_stats(prefix_stats: &Prefix, parent_memory_usage: usize) {
+pub fn print_stats(config: &Config, prefix: &Prefix, parent_prefix: &Prefix) {
     println!(
-        "{:indent$}{} => count: {}, size: {} ({:.2}%)",
+        "{:indent$}{} => count: {} ({:.2}%), size: {} ({:.2}%)",
         "",
-        prefix_stats.value.as_ref().unwrap_or(&"root".to_string()),
-        prefix_stats.count,
-        HumanBytes(prefix_stats.memory_usage as u64),
-        prefix_stats.memory_usage as f32 / parent_memory_usage as f32 * 100.,
-        indent = prefix_stats.depth * 2,
+        prefix.value.as_ref().unwrap_or(&"root".to_string()),
+        prefix.keys_count,
+        prefix.keys_count as f32 / parent_prefix.keys_count as f32 * 100.,
+        HumanBytes(prefix.memory_usage as u64),
+        prefix.memory_usage as f32 / parent_prefix.memory_usage as f32 * 100.,
+        indent = prefix.depth * 2,
     );
 
-    if prefix_stats.children.is_empty() {
+    if prefix.children.is_empty() {
         return;
     }
 
-    let mut children: Vec<&Prefix> = prefix_stats.children.values().collect();
+    let mut children: Vec<&Prefix> = prefix.children.values().collect();
 
     children.sort_by_key(|k| k.memory_usage);
     children.reverse();
 
-    let mut other_keys_count = prefix_stats.count;
-    let mut other_memory_usage = prefix_stats.memory_usage;
+    let mut other_keys_count = prefix.keys_count;
+    let mut other_memory_usage = prefix.memory_usage;
 
-    for stats in children.iter() {
-        other_keys_count -= stats.count;
-        other_memory_usage -= stats.memory_usage;
-        print_stats(stats, prefix_stats.memory_usage);
+    for child_prefix in children.iter() {
+        other_keys_count -= child_prefix.keys_count;
+        other_memory_usage -= child_prefix.memory_usage;
+        print_stats(config, child_prefix, prefix);
     }
 
-    let other_percentage = other_memory_usage as f32 / prefix_stats.memory_usage as f32 * 100.;
+    let other_keys_count_percentage = other_keys_count as f32 / prefix.keys_count as f32 * 100.;
 
-    if other_percentage < 1. {
+    if other_keys_count_percentage < config.min_prefix_frequency {
         return;
     }
 
     println!(
-        "{:indent$}{} => count: {}, size: {} ({:.2}%)",
+        "{:indent$}{} => count: {} ({:.2}%), size: {} ({:.2}%)",
         "",
         "other",
         other_keys_count,
+        other_keys_count_percentage,
         HumanBytes(other_memory_usage as u64),
-        other_percentage,
-        indent = (prefix_stats.depth + 1) * 2,
+        other_memory_usage as f32 / prefix.memory_usage as f32 * 100.,
+        indent = (prefix.depth + 1) * 2,
     );
 }
