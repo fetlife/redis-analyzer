@@ -16,9 +16,13 @@ FLAGS:
     -V, --version    Prints version information
 
 OPTIONS:
-    -d, --max-depth <MAX_DEPTH>      Max key depth to examine (default: not limited)
-    -s, --separators <SEPARATORS>    List of key separators (default: ":/|" )
-    -u, --urls <URLS>                List of URLs to scan
+    -d, --max-depth <MAX_DEPTH>                                     Maximum key depth to examine (default: not limited)
+    -p, --max-parallelism <MAX_PARALLELISM>
+            Maximum number of hosts scanned at the same time (default: number of logical CPUs)
+
+    -f, --min-prefix-frequency <MIN_PREFIX_FREQUENCY_PERCENTAGE>    Minimum prefix frequency in percentages for prefix to be included in the result (default: 1)
+    -s, --separators <SEPARATORS>                                   List of key separators (default: ":/|" )
+    -u, --urls <URLS>
 ```
 
 ## Preview
