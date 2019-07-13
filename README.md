@@ -9,11 +9,12 @@ redis-analyzer 0.1.0
 Analyzes keys in Redis to produce breakdown of the most frequent prefixes.
 
 USAGE:
-    redis-analyzer [OPTIONS] --urls <URLS>
+    redis-analyzer [FLAGS] [OPTIONS] --urls <URLS>
 
 FLAGS:
-    -h, --help       Prints help information
-    -V, --version    Prints version information
+    -h, --help        Prints help information
+        --progress    Shows progress
+    -V, --version     Prints version information
 
 OPTIONS:
     -d, --max-depth <MAX_DEPTH>                                     Maximum key depth to examine (default: not limited)
@@ -29,47 +30,29 @@ OPTIONS:
 
 ## Preview
 
-![preview](preview.gif)
 
 Example output:
 
 ```
-root => count: 1193, size: 12.42 MB (100.00%)
-  cache => count: 294, size: 2.14 MB (17.25%)
-    cache:rails5.1.6 => count: 13, size: 1.16 MB (54.11%)
-      cache:rails5.1.6/trends => count: 13, size: 1.16 MB (100.00%)
-        cache:rails5.1.6/trends/v1 => count: 13, size: 1.16 MB (100.00%)
-    cache:rails5.2.2 => count: 13, size: 957.75 kB (44.70%)
-      cache:rails5.2.2/trends => count: 13, size: 957.75 kB (100.00%)
-        cache:rails5.2.2/trends/v1 => count: 13, size: 957.75 kB (100.00%)
-    cache:Touchify => count: 239, size: 21.12 kB (0.99%)
-      cache:Touchify/internal => count: 239, size: 21.12 kB (100.00%)
-        cache:Touchify/internal/User => count: 239, size: 21.12 kB (100.00%)
-  feed => count: 158, size: 1.68 MB (13.55%)
-    feed:feed => count: 158, size: 1.68 MB (100.00%)
-      feed:feed/feeds => count: 155, size: 1.68 MB (99.93%)
-  sidekiq => count: 429, size: 1.51 MB (12.20%)
-    sidekiq:sidekiq-scheduler => count: 27, size: 188.29 kB (12.43%)
-      sidekiq:sidekiq-scheduler:pushed => count: 25, size: 184.44 kB (97.95%)
-      other => count: 2, size: 3.85 kB (2.05%)
-    sidekiq:stat => count: 388, size: 28.88 kB (1.91%)
-      sidekiq:stat:processed => count: 194, size: 14.93 kB (51.68%)
-      sidekiq:stat:failed => count: 194, size: 13.96 kB (48.32%)
-    other => count: 14, size: 1.3 MB (85.66%)
-  notifications => count: 75, size: 637.51 kB (5.13%)
-    notifications:feed => count: 74, size: 637.41 kB (99.98%)
-      notifications:feed/feeds => count: 71, size: 636.73 kB (99.89%)
-  store => count: 47, size: 209.62 kB (1.69%)
-    store:recommendation_service => count: 13, size: 1.29 kB (0.61%)
-    other => count: 34, size: 208.34 kB (99.39%)
-  adstats => count: 41, size: 10.34 kB (0.08%)
-    adstats:ads => count: 41, size: 10.34 kB (100.00%)
-      adstats:ads/stats => count: 36, size: 8.95 kB (86.55%)
-      other => count: 5, size: 1.39 kB (13.45%)
-  counts => count: 120, size: 9.92 kB (0.08%)
-    counts:CountsService => count: 120, size: 9.92 kB (100.00%)
-      counts:CountsService/User => count: 120, size: 9.92 kB (100.00%)
-  rollout => count: 27, size: 2.53 kB (0.02%)
-    rollout:feature => count: 27, size: 2.53 kB (100.00%)
-  other => count: 2, size: 6.21 MB (50.00%)
+                             Key Count                               Memory Usage
+ALL -------------------------- 15155 (100.00%)------------------------ 26.88MB (100.00%)
+ ├─ cache ---------------------├─ 294 (1.94%)--------------------------├─ 2.04MB (7.60%)
+ │   └─ Touchify --------------│---└─ 239 (81.29%)---------------------│---└─ 20.62KB (0.99%)
+ │      └─ internal -----------│------└─ 239 (100.00%)-----------------│------└─ 20.62KB (100.00%)
+ │         └─ User ------------│---------└─ 239 (100.00%)--------------│---------└─ 20.62KB (100.00%)
+ ├─ feed ----------------------├─ 158 (1.04%)--------------------------├─ 1.60MB (5.97%)
+ │   └─ feed ------------------│---└─ 158 (100.00%)--------------------│---└─ 1.60MB (100.00%)
+ │      └─ feeds --------------│------└─ 155 (98.10%)------------------│------└─ 1.60MB (99.93%)
+ ├─ hovno ---------------------├─ 13808 (91.11%)-----------------------├─ 1.55MB (5.75%)
+ ├─ sidekiq -------------------├─ 399 (2.63%)--------------------------├─ 1.27MB (4.74%)
+ │   └─ stat ------------------│---└─ 388 (97.24%)---------------------│---└─ 28.21KB (2.16%)
+ │      ├─ processed ----------│------├─ 194 (50.00%)------------------│------├─ 14.58KB (51.68%)
+ │      └─ failed -------------│------└─ 194 (50.00%)------------------│------└─ 13.63KB (48.32%)
+ ├─ stat ----------------------├─ 176 (1.16%)--------------------------├─ 11.24KB (0.04%)
+ ├─ counts --------------------├─ 120 (0.79%)--------------------------├─ 9.68KB (0.04%)
+ └─ [other] -------------------└─ 200 (1.32%)--------------------------└─ 20.39MB (75.86%)
 ```
+
+Progress preview:
+
+![preview](preview.gif)
