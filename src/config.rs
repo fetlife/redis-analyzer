@@ -10,6 +10,7 @@ pub struct Config {
     pub max_depth: usize,
     pub max_parallelism: usize,
     pub min_prefix_frequency: f32,
+    pub progress: bool,
 }
 
 impl Config {
@@ -69,6 +70,7 @@ impl Config {
             max_depth,
             max_parallelism,
             min_prefix_frequency,
+            progress: arg_matches.is_present("progress"),
         }
     }
     pub fn separators_regex(&self) -> Regex {

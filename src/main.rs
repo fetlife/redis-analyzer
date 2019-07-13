@@ -22,14 +22,9 @@ fn main() {
     let mut root_prefix = Prefix::new(None, 0, config.all_keys_count);
 
     gather_stats(&mut config, &mut root_prefix);
-
-    println!("");
-
     gather_memory_usage_stats(&mut config, &mut root_prefix);
 
     sort(&mut root_prefix);
-
-    println!("");
 
     result_formatters::plain::call(&config, &root_prefix);
 }
@@ -44,15 +39,18 @@ fn sort(prefix: &mut Prefix) {
 }
 
 fn gather_stats(config: &mut Config, prefix_stats: &mut Prefix) {
-    println!(
-        "Scanning {}",
-        prefix_stats.value.as_ref().unwrap_or(&"root".to_string())
-    );
-
     let frequency: HashMapFrequency<String> = HashMapFrequency::new();
     let frequency_mutex = Arc::new(Mutex::new(frequency));
     let separator = config.separators_regex();
-    let bar = ProgressBar::new(prefix_stats.keys_count as u64);
+    let bar = if config.progress {
+        println!(
+            "Scanning {}",
+            prefix_stats.value.as_ref().unwrap_or(&"root".to_string())
+        );
+        ProgressBar::new(prefix_stats.keys_count as u64)
+    } else {
+        ProgressBar::hidden()
+    };
 
     config.databases.par_iter_mut().for_each(|database| {
         bar.set_style(ProgressStyle::default_bar().template(
@@ -114,12 +112,19 @@ fn gather_memory_usage_stats(config: &mut Config, prefix_stats: &mut Prefix) {
     let scan_size = 100;
     let scan_size_arg = format!("{}", scan_size);
 
-    let bar = ProgressBar::new(prefix_stats.keys_count as u64);
+    let bar = if config.progress {
+        println!();
+        println!("Memory scanning");
+        ProgressBar::new(prefix_stats.keys_count as u64)
+    } else {
+        ProgressBar::hidden()
+    };
 
-    bar.set_message("Memory scanning");
-    bar.set_style(ProgressStyle::default_bar().template(
-        "{msg}\n[{elapsed_precise}] {wide_bar} {pos}/{len} ({percent}%) [ETA: {eta_precise}]",
-    ));
+    bar.set_style(
+        ProgressStyle::default_bar().template(
+            "[{elapsed_precise}] {wide_bar} {pos}/{len} ({percent}%) [ETA: {eta_precise}]",
+        ),
+    );
 
     for database in config.databases.iter_mut() {
         loop {

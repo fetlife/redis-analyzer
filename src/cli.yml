@@ -37,4 +37,10 @@ args:
       help: 'Maximum number of hosts scanned at the same time (default: number of logical CPUs)'
       takes_value: true
       required: false
+  - progress:
+      long: progress
+      value_name: progress
+      help: 'Shows progress'
+      takes_value: false
+      required: false
 
