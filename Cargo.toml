@@ -9,5 +9,7 @@ clap = { version = "2.33", features = ["yaml"] }
 frequency = "*"
 frequency-hashmap = "*"
 indicatif = "*"
-regex = "*"
+num_cpus = "^1.10"
+rayon = "^1.1"
+regex = "^1.1"
 redis = "0.10.0"

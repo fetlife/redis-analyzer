@@ -20,6 +20,13 @@ args:
       short: d
       long: max-depth
       value_name: MAX_DEPTH
-      help: 'Max key depth to examine (default: not limited)'
+      help: 'Maximum key depth to examine (default: not limited)'
       takes_value: true
       required: false
+  - max_parallelism:
+      short: p
+      long: max-parallelism
+      value_name: MAX_PARALLELISM
+      help: 'Maximum number of hosts scanned at the same time (default: number of logical CPUs)'
+      required: false
+

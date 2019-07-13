@@ -5,9 +5,11 @@ use clap::App;
 use frequency::Frequency;
 use frequency_hashmap::HashMapFrequency;
 use indicatif::{HumanBytes, ProgressBar, ProgressStyle};
+use rayon::prelude::*;
 use redis;
 use regex::Regex;
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 pub struct Prefix {
     pub value: Option<String>,
@@ -30,6 +32,8 @@ impl Prefix {
 }
 
 pub struct Database {
+    pub host: String,
+    pub url: String,
     pub keys_count: usize,
     pub connection: redis::Connection,
 }
@@ -52,17 +56,30 @@ impl Config {
             .value_of("max_depth")
             .map_or(999, |s| s.parse().expect("max-depth needs to be a number"));
 
+        let max_parallelism = arg_matches
+            .value_of("max_parallelism")
+            .map_or(num_cpus::get(), |s| {
+                s.parse().expect("max-parallelism needs to be a number")
+            });
+
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(max_parallelism)
+            .build_global()
+            .unwrap();
+
         let databases: Vec<Database> = urls
             .iter()
             .map(|host| {
-                let client = redis::Client::open(format!("redis://{}", host).as_ref())
-                    .expect("connect to redis");
+                let url = format!("redis://{}", host);
+                let client = redis::Client::open(url.as_ref()).expect("connect to redis");
                 let connection = client.get_connection().expect("getting connection");
                 let keys_count: usize = redis::cmd("DBSIZE")
                     .query(&connection)
                     .expect("getting dbsize");
 
                 Database {
+                    host: host.to_string(),
+                    url,
                     keys_count,
                     connection,
                 }
@@ -107,11 +124,12 @@ pub fn gather_stats(prefix_stats: &mut Prefix, config: &mut Config) {
         prefix_stats.value.as_ref().unwrap_or(&"root".to_string())
     );
 
-    let mut frequency: HashMapFrequency<String> = HashMapFrequency::new();
+    let frequency: HashMapFrequency<String> = HashMapFrequency::new();
+    let frequency_mutex = Arc::new(Mutex::new(frequency));
     let delimiter = config.separators_regex();
     let bar = ProgressBar::new(prefix_stats.count as u64);
 
-    for database in config.databases.iter_mut() {
+    config.databases.par_iter_mut().for_each(|database| {
         bar.set_style(ProgressStyle::default_bar().template(
             "[{elapsed_precise}] {wide_bar} {pos}/{len} ({percent}%) [ETA: {eta_precise}]",
         ));
@@ -143,13 +161,13 @@ pub fn gather_stats(prefix_stats: &mut Prefix, config: &mut Config) {
                 Some(position) => unsafe { key.get_unchecked(0..position.start()) }.to_string(),
             };
 
-            frequency.increment(prefix);
+            frequency_mutex.lock().unwrap().increment(prefix);
         }
-    }
+    });
 
     bar.finish();
 
-    for (prefix, count) in frequency.iter() {
+    for (prefix, count) in frequency_mutex.lock().unwrap().iter() {
         let mut child = Prefix::new(Some(prefix), prefix_stats.depth + 1, *count);
 
         // if key count is larger than 1% of all keys count
