@@ -42,60 +42,63 @@ pub struct Config {
 }
 
 impl Config {
+    pub fn new() -> Self {
+        let yaml = load_yaml!("cli.yml");
+        let arg_matches = App::from_yaml(yaml).get_matches();
+
+        let urls: Vec<&str> = arg_matches.value_of("urls").unwrap().split(",").collect();
+        let separators = arg_matches.value_of("separators").unwrap_or(":/|");
+        let max_depth = arg_matches
+            .value_of("max_depth")
+            .map_or(999, |s| s.parse().expect("max-depth needs to be a number"));
+
+        let databases: Vec<Database> = urls
+            .iter()
+            .map(|host| {
+                let client = redis::Client::open(format!("redis://{}", host).as_ref())
+                    .expect("connect to redis");
+                let connection = client.get_connection().expect("getting connection");
+                let keys_count: usize = redis::cmd("DBSIZE")
+                    .query(&connection)
+                    .expect("getting dbsize");
+
+                Database {
+                    keys_count,
+                    connection,
+                }
+            })
+            .collect();
+
+        let all_keys_count: usize = databases
+            .iter()
+            .fold(0, |acc, database| acc + database.keys_count);
+
+        Self {
+            databases,
+            all_keys_count,
+            separators: separators.to_string(),
+            max_depth,
+        }
+    }
     pub fn separators_regex(&self) -> Regex {
         Regex::new(&format!("[{}]+", self.separators)).unwrap()
     }
 }
 
 fn main() {
-    let yaml = load_yaml!("cli.yml");
-    let matches = App::from_yaml(yaml).get_matches();
+    let mut config = Config::new();
 
-    let urls: Vec<&str> = matches.value_of("urls").unwrap().split(",").collect();
-    let separators = matches.value_of("separators").unwrap_or(":/|");
-    let max_depth = matches
-        .value_of("max_depth")
-        .map_or(999, |s| s.parse().expect("max-depth needs to be a number"));
+    let mut root_prefix = Prefix::new(None, 0, config.all_keys_count);
 
-    let databases: Vec<Database> = urls
-        .iter()
-        .map(|host| {
-            let client = redis::Client::open(format!("redis://{}", host).as_ref())
-                .expect("connect to redis");
-            let connection = client.get_connection().expect("getting connection");
-            let keys_count: usize = redis::cmd("DBSIZE")
-                .query(&connection)
-                .expect("getting dbsize");
-
-            Database {
-                keys_count,
-                connection,
-            }
-        })
-        .collect();
-
-    let all_keys_count: usize = databases
-        .iter()
-        .fold(0, |acc, database| acc + database.keys_count);
-
-    let mut config = Config {
-        databases,
-        all_keys_count,
-        separators: separators.to_string(),
-        max_depth,
-    };
-
-    let mut top_stats = Prefix::new(None, 0, all_keys_count);
-
-    gather_stats(&mut top_stats, &mut config);
+    gather_stats(&mut root_prefix, &mut config);
 
     println!("");
 
-    gather_memory_usage_stats(&mut top_stats, &mut config);
+    gather_memory_usage_stats(&mut root_prefix, &mut config);
 
     println!("");
 
-    print_stats(&top_stats, top_stats.memory_usage);
+    print_stats(&root_prefix, root_prefix.memory_usage);
 }
 
 pub fn gather_stats(prefix_stats: &mut Prefix, config: &mut Config) {
