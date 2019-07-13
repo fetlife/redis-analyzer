@@ -3,7 +3,7 @@ extern crate clap;
 
 use frequency::Frequency;
 use frequency_hashmap::HashMapFrequency;
-use indicatif::{HumanBytes, ProgressBar, ProgressStyle};
+use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 use redis;
 use std::sync::{Arc, Mutex};
@@ -11,6 +11,7 @@ use std::sync::{Arc, Mutex};
 pub mod config;
 pub mod database;
 pub mod prefix;
+pub mod result_formatters;
 
 use crate::config::Config;
 use crate::prefix::Prefix;
@@ -28,7 +29,7 @@ fn main() {
 
     println!("");
 
-    print_stats(&config, &root_prefix, &root_prefix);
+    result_formatters::plain::call(&config, &root_prefix);
 }
 
 pub fn gather_stats(config: &mut Config, prefix_stats: &mut Prefix) {
@@ -171,52 +172,4 @@ pub fn record_memory_usage(prefix_stats: &mut Prefix, key: &str, memory_usage: u
             record_memory_usage(sub_prefix_stats, key, memory_usage);
         }
     }
-}
-
-pub fn print_stats(config: &Config, prefix: &Prefix, parent_prefix: &Prefix) {
-    println!(
-        "{:indent$}{} => count: {} ({:.2}%), size: {} ({:.2}%)",
-        "",
-        prefix.value.as_ref().unwrap_or(&"root".to_string()),
-        prefix.keys_count,
-        prefix.keys_count as f32 / parent_prefix.keys_count as f32 * 100.,
-        HumanBytes(prefix.memory_usage as u64),
-        prefix.memory_usage as f32 / parent_prefix.memory_usage as f32 * 100.,
-        indent = prefix.depth * 2,
-    );
-
-    if prefix.children.is_empty() {
-        return;
-    }
-
-    let mut children: Vec<&Prefix> = prefix.children.values().collect();
-
-    children.sort_by_key(|k| k.memory_usage);
-    children.reverse();
-
-    let mut other_keys_count = prefix.keys_count;
-    let mut other_memory_usage = prefix.memory_usage;
-
-    for child_prefix in children.iter() {
-        other_keys_count -= child_prefix.keys_count;
-        other_memory_usage -= child_prefix.memory_usage;
-        print_stats(config, child_prefix, prefix);
-    }
-
-    let other_keys_count_percentage = other_keys_count as f32 / prefix.keys_count as f32 * 100.;
-
-    if other_keys_count_percentage < config.min_prefix_frequency {
-        return;
-    }
-
-    println!(
-        "{:indent$}{} => count: {} ({:.2}%), size: {} ({:.2}%)",
-        "",
-        "other",
-        other_keys_count,
-        other_keys_count_percentage,
-        HumanBytes(other_memory_usage as u64),
-        other_memory_usage as f32 / prefix.memory_usage as f32 * 100.,
-        indent = (prefix.depth + 1) * 2,
-    );
 }
