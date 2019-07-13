@@ -1,11 +1,11 @@
-use std::collections::HashMap;
+use std::vec::Vec;
 
 pub struct Prefix {
     pub value: Option<String>,
     pub depth: usize,
     pub keys_count: usize,
     pub memory_usage: usize,
-    pub children: HashMap<String, Prefix>,
+    pub children: Vec<Prefix>,
 }
 
 impl Prefix {
@@ -15,7 +15,7 @@ impl Prefix {
             depth,
             keys_count,
             memory_usage: 0,
-            children: HashMap::new(),
+            children: Vec::new(),
         }
     }
 }

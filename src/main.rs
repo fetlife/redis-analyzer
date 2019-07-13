@@ -27,12 +27,23 @@ fn main() {
 
     gather_memory_usage_stats(&mut config, &mut root_prefix);
 
+    sort(&mut root_prefix);
+
     println!("");
 
     result_formatters::plain::call(&config, &root_prefix);
 }
 
-pub fn gather_stats(config: &mut Config, prefix_stats: &mut Prefix) {
+fn sort(prefix: &mut Prefix) {
+    if prefix.children.is_empty() {
+        return;
+    }
+
+    prefix.children.sort_by_key(|c| c.memory_usage);
+    prefix.children.reverse();
+}
+
+fn gather_stats(config: &mut Config, prefix_stats: &mut Prefix) {
     println!(
         "Scanning {}",
         prefix_stats.value.as_ref().unwrap_or(&"root".to_string())
@@ -40,7 +51,7 @@ pub fn gather_stats(config: &mut Config, prefix_stats: &mut Prefix) {
 
     let frequency: HashMapFrequency<String> = HashMapFrequency::new();
     let frequency_mutex = Arc::new(Mutex::new(frequency));
-    let delimiter = config.separators_regex();
+    let separator = config.separators_regex();
     let bar = ProgressBar::new(prefix_stats.keys_count as u64);
 
     config.databases.par_iter_mut().for_each(|database| {
@@ -68,9 +79,9 @@ pub fn gather_stats(config: &mut Config, prefix_stats: &mut Prefix) {
                 bar.inc(10_000);
             }
 
-            let mut delimiter_positions = delimiter.find_iter(&key);
+            let mut separator_positions = separator.find_iter(&key);
 
-            let prefix = match delimiter_positions.nth(prefix_stats.depth) {
+            let prefix = match separator_positions.nth(prefix_stats.depth) {
                 None => key,
                 Some(position) => unsafe { key.get_unchecked(0..position.start()) }.to_string(),
             };
@@ -90,18 +101,14 @@ pub fn gather_stats(config: &mut Config, prefix_stats: &mut Prefix) {
             && child_absolute_frequency > config.min_prefix_frequency
         {
             gather_stats(config, &mut child);
-            prefix_stats
-                .children
-                .insert(prefix_value.to_string(), child);
+            prefix_stats.children.push(child);
         } else if prefix_stats.depth == 0 && *count > 100 {
-            prefix_stats
-                .children
-                .insert(prefix_value.to_string(), child);
+            prefix_stats.children.push(child);
         }
     }
 }
 
-pub fn gather_memory_usage_stats(config: &mut Config, prefix_stats: &mut Prefix) {
+fn gather_memory_usage_stats(config: &mut Config, prefix_stats: &mut Prefix) {
     let mut cursor: u64 = 0;
     let mut iterations = 0;
     let scan_size = 100;
@@ -160,16 +167,16 @@ pub fn gather_memory_usage_stats(config: &mut Config, prefix_stats: &mut Prefix)
     bar.finish();
 }
 
-pub fn record_memory_usage(prefix_stats: &mut Prefix, key: &str, memory_usage: usize) {
-    if prefix_stats
+fn record_memory_usage(prefix: &mut Prefix, key: &str, memory_usage: usize) {
+    if prefix
         .value
         .as_ref()
         .map_or(true, |prefix| key.starts_with(prefix))
     {
-        prefix_stats.memory_usage += memory_usage;
+        prefix.memory_usage += memory_usage;
 
-        for (_, sub_prefix_stats) in prefix_stats.children.iter_mut() {
-            record_memory_usage(sub_prefix_stats, key, memory_usage);
+        for child in prefix.children.iter_mut() {
+            record_memory_usage(child, key, memory_usage);
         }
     }
 }
