@@ -9,12 +9,12 @@ pub struct Prefix {
 }
 
 impl Prefix {
-    pub fn new(prefix: Option<&str>, depth: usize, keys_count: usize) -> Self {
+    pub fn new(prefix: Option<&str>, depth: usize, keys_count: usize, memory_usage: usize) -> Self {
         Self {
             value: prefix.map(|s| s.to_string()),
             depth,
             keys_count,
-            memory_usage: 0,
+            memory_usage,
             children: Vec::new(),
         }
     }

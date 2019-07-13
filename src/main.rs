@@ -19,12 +19,14 @@ use crate::prefix::Prefix;
 fn main() {
     let mut config = Config::new();
 
-    let mut root_prefix = Prefix::new(None, 0, config.all_keys_count);
+    let mut root_prefix = Prefix::new(None, 0, config.all_keys_count, 0);
 
     gather_stats(&mut config, &mut root_prefix);
     gather_memory_usage_stats(&mut config, &mut root_prefix);
 
     sort(&mut root_prefix);
+
+    add_other(&config, &mut root_prefix);
 
     result_formatters::plain::call(&config, &root_prefix);
 }
@@ -36,6 +38,31 @@ fn sort(prefix: &mut Prefix) {
 
     prefix.children.sort_by_key(|c| c.memory_usage);
     prefix.children.reverse();
+}
+
+fn add_other(config: &Config, prefix: &mut Prefix) {
+    if prefix.children.is_empty() {
+        return;
+    }
+
+    let mut other_prefix = Prefix::new(
+        Some("[other]"),
+        prefix.depth + 1,
+        prefix.keys_count,
+        prefix.memory_usage,
+    );
+
+    for child in prefix.children.iter() {
+        other_prefix.keys_count -= child.keys_count;
+        other_prefix.memory_usage -= child.memory_usage;
+    }
+
+    let other_absolute_frequency =
+        other_prefix.keys_count as f32 / config.all_keys_count as f32 * 100.;
+
+    if other_absolute_frequency > config.min_prefix_frequency {
+        prefix.children.push(other_prefix);
+    }
 }
 
 fn gather_stats(config: &mut Config, prefix_stats: &mut Prefix) {
@@ -91,7 +118,7 @@ fn gather_stats(config: &mut Config, prefix_stats: &mut Prefix) {
     bar.finish();
 
     for (prefix_value, count) in frequency_mutex.lock().unwrap().iter() {
-        let mut child = Prefix::new(Some(prefix_value), prefix_stats.depth + 1, *count);
+        let mut child = Prefix::new(Some(prefix_value), prefix_stats.depth + 1, *count, 0);
 
         let child_absolute_frequency = *count as f32 / config.all_keys_count as f32 * 100.;
 
