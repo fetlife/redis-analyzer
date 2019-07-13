@@ -9,22 +9,22 @@ use redis;
 use regex::Regex;
 use std::collections::HashMap;
 
-pub struct PrefixStats {
+pub struct Prefix {
     pub value: Option<String>,
     pub depth: usize,
     pub count: usize,
     pub memory_usage: usize,
-    pub subkeys: HashMap<String, PrefixStats>,
+    pub children: HashMap<String, Prefix>,
 }
 
-impl PrefixStats {
+impl Prefix {
     pub fn new(prefix: Option<&str>, depth: usize, count: usize) -> Self {
         Self {
             value: prefix.map(|s| s.to_string()),
             depth,
             count,
             memory_usage: 0,
-            subkeys: HashMap::new(),
+            children: HashMap::new(),
         }
     }
 }
@@ -85,7 +85,7 @@ fn main() {
         max_depth,
     };
 
-    let mut top_stats = PrefixStats::new(None, 0, all_keys_count);
+    let mut top_stats = Prefix::new(None, 0, all_keys_count);
 
     gather_stats(&mut top_stats, &mut config);
 
@@ -98,7 +98,7 @@ fn main() {
     print_stats(&top_stats, top_stats.memory_usage);
 }
 
-pub fn gather_stats(prefix_stats: &mut PrefixStats, config: &mut Config) {
+pub fn gather_stats(prefix_stats: &mut Prefix, config: &mut Config) {
     println!(
         "Scanning {}",
         prefix_stats.value.as_ref().unwrap_or(&"root".to_string())
@@ -147,19 +147,19 @@ pub fn gather_stats(prefix_stats: &mut PrefixStats, config: &mut Config) {
     bar.finish();
 
     for (prefix, count) in frequency.iter() {
-        let mut subkey = PrefixStats::new(Some(prefix), prefix_stats.depth + 1, *count);
+        let mut child = Prefix::new(Some(prefix), prefix_stats.depth + 1, *count);
 
         // if key count is larger than 1% of all keys count
         if prefix_stats.depth < config.max_depth && *count > config.all_keys_count / 100 {
-            gather_stats(&mut subkey, config);
-            prefix_stats.subkeys.insert(prefix.to_string(), subkey);
+            gather_stats(&mut child, config);
+            prefix_stats.children.insert(prefix.to_string(), child);
         } else if prefix_stats.depth == 0 && *count > 100 {
-            prefix_stats.subkeys.insert(prefix.to_string(), subkey);
+            prefix_stats.children.insert(prefix.to_string(), child);
         }
     }
 }
 
-pub fn gather_memory_usage_stats(prefix_stats: &mut PrefixStats, config: &mut Config) {
+pub fn gather_memory_usage_stats(prefix_stats: &mut Prefix, config: &mut Config) {
     let mut cursor: u64 = 0;
     let mut iterations = 0;
     let scan_size = 100;
@@ -218,7 +218,7 @@ pub fn gather_memory_usage_stats(prefix_stats: &mut PrefixStats, config: &mut Co
     bar.finish();
 }
 
-pub fn record_memory_usage(prefix_stats: &mut PrefixStats, key: &str, memory_usage: usize) {
+pub fn record_memory_usage(prefix_stats: &mut Prefix, key: &str, memory_usage: usize) {
     if prefix_stats
         .value
         .as_ref()
@@ -226,13 +226,13 @@ pub fn record_memory_usage(prefix_stats: &mut PrefixStats, key: &str, memory_usa
     {
         prefix_stats.memory_usage += memory_usage;
 
-        for (_, sub_prefix_stats) in prefix_stats.subkeys.iter_mut() {
+        for (_, sub_prefix_stats) in prefix_stats.children.iter_mut() {
             record_memory_usage(sub_prefix_stats, key, memory_usage);
         }
     }
 }
 
-pub fn print_stats(prefix_stats: &PrefixStats, parent_memory_usage: usize) {
+pub fn print_stats(prefix_stats: &Prefix, parent_memory_usage: usize) {
     println!(
         "{:indent$}{} => count: {}, size: {} ({:.2}%)",
         "",
@@ -243,20 +243,20 @@ pub fn print_stats(prefix_stats: &PrefixStats, parent_memory_usage: usize) {
         indent = prefix_stats.depth * 2,
     );
 
-    let mut subkeys: Vec<&PrefixStats> = prefix_stats.subkeys.values().collect();
-
-    if subkeys.is_empty() {
+    if prefix_stats.children.is_empty() {
         return;
     }
 
-    subkeys.sort_by_key(|k| k.memory_usage);
-    subkeys.reverse();
+    let mut children: Vec<&Prefix> = prefix_stats.children.values().collect();
 
-    let mut other = prefix_stats.count;
+    children.sort_by_key(|k| k.memory_usage);
+    children.reverse();
+
+    let mut other_keys_count = prefix_stats.count;
     let mut other_memory_usage = prefix_stats.memory_usage;
 
-    for stats in subkeys.iter() {
-        other -= stats.count;
+    for stats in children.iter() {
+        other_keys_count -= stats.count;
         other_memory_usage -= stats.memory_usage;
         print_stats(stats, prefix_stats.memory_usage);
     }
@@ -271,7 +271,7 @@ pub fn print_stats(prefix_stats: &PrefixStats, parent_memory_usage: usize) {
         "{:indent$}{} => count: {}, size: {} ({:.2}%)",
         "",
         "other",
-        other,
+        other_keys_count,
         HumanBytes(other_memory_usage as u64),
         other_percentage,
         indent = (prefix_stats.depth + 1) * 2,
