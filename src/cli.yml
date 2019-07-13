@@ -1,5 +1,4 @@
 name: redis-analyzer
-version: '0.1.0'
 about: Analyzes keys in Redis to produce breakdown of the most frequent prefixes.
 args:
   - urls:
@@ -37,4 +36,9 @@ args:
       long: progress
       help: 'Shows progress'
       required: false
+  - sort:
+      long: sort
+      value_name: SORT_BY
+      help: 'Maximum number of hosts scanned at the same time (default: number of logical CPUs)'
+      takes_value: true
 

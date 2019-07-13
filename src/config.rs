@@ -16,7 +16,7 @@ pub struct Config {
 impl Config {
     pub fn new() -> Self {
         let yaml = load_yaml!("cli.yml");
-        let arg_matches = App::from_yaml(yaml).get_matches();
+        let arg_matches = App::from_yaml(yaml).version(crate_version!()).get_matches();
 
         let urls: Vec<&str> = arg_matches.value_of("urls").unwrap().split(",").collect();
         let separators = arg_matches.value_of("separators").unwrap_or(":/|");
