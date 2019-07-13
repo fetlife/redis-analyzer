@@ -4,9 +4,6 @@ use crate::config::Config;
 use crate::prefix::Prefix;
 
 pub fn call(config: &Config, root_prefix: &Prefix) {
-    // print_stats(&config, &root_prefix, &root_prefix);
-    // println!();
-
     println!(
         "{:indent$}Key Count{:indenx$}Memory Usage",
         "",
@@ -34,33 +31,25 @@ fn print_tree(
     last: bool,
 ) {
     let prefix_current = if last { " └─ " } else { " ├─ " };
+    let display_value = key_suffix(node.value.as_ref().unwrap_or(&"".to_string()), config);
 
-    if root {
-        let leaf = format!(
-            "{}{} ",
-            "ALL",
-            key_suffix(node.value.as_ref().unwrap_or(&"".to_string()), config),
-        );
-        println!(
-            "{leaf:-<width$}{info}",
-            leaf = leaf,
-            width = 30,
-            info = info_string(node, parent_node, "")
-        );
+    let (leaf, info) = if root {
+        let leaf = format!("{}{} ", "ALL", display_value);
+        let info = info_string(node, parent_node, "");
+        (leaf, info)
     } else {
-        let leaf_prefix = format!("{}{}", prefix, prefix_current,);
-        let leaf = format!(
-            "{}{} ",
-            leaf_prefix,
-            key_suffix(node.value.as_ref().unwrap_or(&"".to_string()), config),
-        );
-        println!(
-            "{leaf:-<width$}{info}",
-            leaf = leaf,
-            width = 30,
-            info = info_string(node, parent_node, &leaf_prefix)
-        );
-    }
+        let leaf_prefix = format!("{}{}", prefix, prefix_current);
+        let leaf = format!("{}{} ", leaf_prefix, display_value);
+        let info = info_string(node, parent_node, &leaf_prefix);
+        (leaf, info)
+    };
+
+    println!(
+        "{leaf:-<width$}{info}",
+        leaf = leaf,
+        width = 30,
+        info = info,
+    );
 
     let prefix_child = if root {
         ""
@@ -102,25 +91,15 @@ fn info_string(prefix: &Prefix, parent_prefix: &Prefix, leaf_prefix: &str) -> St
     let mut leaf_prefix = leaf_prefix.replace(" ", "-");
     leaf_prefix.pop();
     leaf_prefix.push(' ');
-    let keys_percentage = format!(
-        "({:2.2}%) ",
-        prefix.keys_count as f32 / parent_prefix.keys_count as f32 * 100.
-    );
     let keys_count = format!(
-        "{count:─>width_left$} {percentage}",
+        "{count} ({percentage:.2}%)",
         count = prefix.keys_count,
-        percentage = keys_percentage,
-        width_left = 0,
-    );
-    let memory_usage_percentage = format!(
-        "({:2.2}%) ",
-        prefix.memory_usage as f32 / parent_prefix.memory_usage as f32 * 100.,
+        percentage = prefix.keys_count as f32 / parent_prefix.keys_count as f32 * 100.,
     );
     let memory_usage = format!(
-        "{memory_usage:->width_left$} {percentage} ",
+        "{memory_usage} ({percentage:.2}%) ",
         memory_usage = format!("{}", HumanBytes(prefix.memory_usage as u64)),
-        percentage = memory_usage_percentage,
-        width_left = 0,
+        percentage = prefix.memory_usage as f32 / parent_prefix.memory_usage as f32 * 100.,
     );
     let leaf_prefix_with_leaf_prefix = format!(
         "{leaf_prefix}{keys_count}",
