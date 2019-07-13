@@ -159,7 +159,7 @@ fn info_string(prefix: &Prefix, parent_prefix: &Prefix, leaf_prefix: &str) -> St
     );
     let keys_count = format!(
         "{count:─>width_left$} {percentage}",
-        count = format_count(prefix.keys_count),
+        count = prefix.keys_count,
         percentage = keys_percentage,
         width_left = 0,
     );
@@ -185,11 +185,4 @@ fn info_string(prefix: &Prefix, parent_prefix: &Prefix, leaf_prefix: &str) -> St
         memory_usage = memory_usage,
         width_left = 40,
     )
-}
-
-fn format_count(count: usize) -> usize {
-    return count;
-    // let mut s = format!("{}", DecimalBytes(count as u64));
-    // s.remove(s.len() - 1);
-    // s
 }
