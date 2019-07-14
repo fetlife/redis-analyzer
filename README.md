@@ -1,4 +1,4 @@
-# Memory Analyzer
+# Redis Analyzer
 
 ## Installation
 
@@ -13,37 +13,41 @@ Alternatively, to build it yourself, clone the repository and run `cargo build -
 ```
 # redis-analyzer --help
 
-redis-analyzer 0.1.0
+redis-analyzer 0.1.1
 Analyzes keys in Redis to produce breakdown of the most frequent prefixes.
 
 USAGE:
-    redis-analyzer [FLAGS] [OPTIONS] --urls <URLS>
+    redis-analyzer [FLAGS] [OPTIONS] --urls <URL1,URL2>
 
 FLAGS:
-    -h, --help              Prints help information
-        --progress          Shows progress
-        --show-full-keys    Shows full keys in result instead of just suffixes
-    -V, --version           Prints version information
+        --full-keys    Shows full keys in result instead of just suffixes.
+    -h, --help         Prints help information
+        --progress     Shows progress
+    -V, --version      Prints version information
 
 OPTIONS:
-        --format <plain|json>                                       Output format (default: plain)
-    -d, --max-depth <MAX_DEPTH>                                     Maximum key depth to examine (default: not limited)
-    -p, --max-parallelism <MAX_PARALLELISM>
-            Maximum number of hosts scanned at the same time (default: number of logical CPUs)
+    -c, --concurrency <CONCURRENCY>
+            Maximum number of hosts scanned at the same time. [default: number of logical CPUs]
 
-    -f, --min-prefix-frequency <MIN_PREFIX_FREQUENCY_PERCENTAGE>
-            Minimum prefix frequency in percentages for prefix to be included in the result (default: 1)
+    -d, --depth <DEPTH>                                         Maximum key depth to examine.
+    -f, --format <plain|json>                                   Output format. (default: plain)
+        --min-count-percentage <MIN_PREFIX_COUNT_PERCENTAGE>
+            Minimum prefix frequency in percentages for prefix to be included in the result. [default: 1.0]
 
-    -s, --separators <SEPARATORS>                                   List of key separators (default: ":/|" )
-        --sort <count|memory>                                       Sort order (defalt: memory)
-    -u, --urls <URLS>                                               List of URLs to scan
+        --order <count|memory>                                  Sort order. [default: memory]
+        --scan-size <SCAN_SIZE>
+            Configures how many keys are fetched at a time. [default: 100]
+
+    -s, --separators <SEPARATORS>                               List of key separators. [default: :/|]
+    -u, --urls <URL1,URL2>                                      List of URLs to scan.
 ```
 
-## Preview
+## Examples
 
 Example output:
 
 ```
+$ redis-analyzer -u 127.0.0.1:6379/0,127.0.0.1:6379/2
                           Key Count                        Memory Usage
 ALL ---------------------- 15155 (100.00%) ---------------- 26.88MB (100.00%)
  ├─ cache -----------------├─ 294 (1.94%) ------------------├─ 2.04MB (7.60%)
@@ -63,6 +67,27 @@ ALL ---------------------- 15155 (100.00%) ---------------- 26.88MB (100.00%)
  └─ [other] ---------------└─ 200 (1.32%) ------------------└─ 20.39MB (75.86%)
 ```
 
-Progress preview:
+```
+$ redis-analyzer -u 127.0.0.1:6379/0,127.0.0.1:6379/2 -d 1
+ALL ------------ 15155 (100.00%) ----- 26.88MB (100.00%)
+ ├─ cache -------├─ 294 (1.94%) -------├─ 2.04MB (7.60%)
+ ├─ feed --------├─ 158 (1.04%) -------├─ 1.60MB (5.97%)
+ ├─ hovno -------├─ 13808 (91.11%) ----├─ 1.55MB (5.75%)
+ ├─ sidekiq -----├─ 399 (2.63%) -------├─ 1.27MB (4.74%)
+ ├─ stat --------├─ 176 (1.16%) -------├─ 11.24KB (0.04%)
+ ├─ counts ------├─ 120 (0.79%) -------├─ 9.68KB (0.04%)
+ └─ [other] -----└─ 200 (1.32%) -------└─ 20.39MB (75.86%)
+```
 
-![preview](preview.gif)
+```
+$ redis-analyzer -u 127.0.0.1:6379/0,127.0.0.1:6379/2 -d 1 --order count
+                Key Count             Memory Usage
+ALL ------------ 15155 (100.00%) ----- 26.88MB (100.00%)
+ ├─ hovno -------├─ 13808 (91.11%) ----├─ 1.55MB (5.75%)
+ ├─ sidekiq -----├─ 399 (2.63%) -------├─ 1.27MB (4.74%)
+ ├─ cache -------├─ 294 (1.94%) -------├─ 2.04MB (7.60%)
+ ├─ stat --------├─ 176 (1.16%) -------├─ 11.24KB (0.04%)
+ ├─ feed --------├─ 158 (1.04%) -------├─ 1.60MB (5.97%)
+ ├─ counts ------├─ 120 (0.79%) -------├─ 9.68KB (0.04%)
+ └─ [other] -----└─ 200 (1.32%) -------└─ 20.39MB (75.86%)
+```

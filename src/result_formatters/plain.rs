@@ -8,7 +8,7 @@ use crate::key_prefix::KeyPrefix;
 struct FormattingOptions {
     key_column_width: usize,
     count_column_width: usize,
-    show_full_keys: bool,
+    full_keys: bool,
     separators_regex: Regex,
 }
 
@@ -16,7 +16,7 @@ pub fn call(config: &Config, root_prefix: &KeyPrefix) {
     let mut options = FormattingOptions {
         key_column_width: 0,
         count_column_width: 0,
-        show_full_keys: config.show_full_keys,
+        full_keys: config.full_keys,
         separators_regex: config.separators_regex(),
     };
 
@@ -104,7 +104,7 @@ fn print_tree(
 fn display_key(options: &FormattingOptions, prefix: &KeyPrefix) -> String {
     let key = &prefix.value;
 
-    if options.show_full_keys {
+    if options.full_keys {
         return key.to_string();
     }
     let separator_positions = options.separators_regex.find_iter(&key);

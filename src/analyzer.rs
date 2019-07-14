@@ -83,8 +83,7 @@ fn analyze_count(config: &mut Config, prefix: &mut KeyPrefix) {
 
         let child_absolute_frequency = *count as f32 / config.all_keys_count as f32 * 100.;
 
-        if prefix.depth < config.max_depth && child_absolute_frequency > config.min_prefix_frequency
-        {
+        if prefix.depth < config.depth && child_absolute_frequency > config.min_count_percentage {
             analyze_count(config, &mut child);
             prefix.children.push(child);
         } else if prefix.depth == 0 && *count > 100 {
@@ -197,7 +196,7 @@ fn backfill_other_keys(config: &Config, prefix: &mut KeyPrefix) {
     let other_absolute_frequency =
         other_prefix.keys_count as f32 / config.all_keys_count as f32 * 100.;
 
-    if other_absolute_frequency > config.min_prefix_frequency {
+    if other_absolute_frequency > config.min_count_percentage {
         prefix.children.push(other_prefix);
     }
 }

@@ -1,58 +1,60 @@
 name: redis-analyzer
 about: Analyzes keys in Redis to produce breakdown of the most frequent prefixes.
 args:
-  - urls:
-      short: u
-      long: urls
-      value_name: URLS
-      help: List of URLs to scan.
+  - concurrency:
+      long: concurrency
+      short: c
+      value_name: CONCURRENCY
+      help: 'Maximum number of hosts scanned at the same time. [default: number of logical CPUs]'
       takes_value: true
-      required: true
-  - separators:
-      short: s
-      long: separators
-      value_name: SEPARATORS
-      help: 'List of key separators. (default: ":/|" )'
-      takes_value: true
-  - max_depth:
+  - depth:
+      long: depth
       short: d
-      long: max-depth
-      value_name: MAX_DEPTH
-      help: 'Maximum key depth to examine. (default: not limited)'
-      takes_value: true
-  - min_prefix_frequency:
-      short: f
-      long: min-prefix-frequency
-      value_name: MIN_PREFIX_FREQUENCY_PERCENTAGE
-      help: 'Minimum prefix frequency in percentages for prefix to be included in the result. (default: 1)'
-      takes_value: true
-      default_value: '1.0'
-  - max_parallelism:
-      short: p
-      long: max-parallelism
-      value_name: MAX_PARALLELISM
-      help: 'Maximum number of hosts scanned at the same time. (default: number of logical CPUs)'
-      takes_value: true
-  - progress:
-      long: progress
-      help: 'Shows progress'
-  - sort:
-      long: sort
-      value_name: count|memory
-      help: 'Sort order. (defalt: memory)'
+      value_name: DEPTH
+      help: 'Maximum key depth to examine.'
       takes_value: true
   - format:
       long: format
+      short: f
       value_name: plain|json
       help: 'Output format. (default: plain)'
       takes_value: true
-  - show_full_keys:
-      long: show-full-keys
-      help: 'Shows full keys in result instead of just suffixes.'
+  - min_count_percentage:
+      long: min-count-percentage
+      value_name: MIN_PREFIX_COUNT_PERCENTAGE
+      help: 'Minimum prefix frequency in percentages for prefix to be included in the result.'
+      takes_value: true
+      default_value: '1.0'
+  - order:
+      long: order
+      value_name: count|memory
+      help: 'Sort order.'
+      takes_value: true
+      default_value: memory
+  - progress:
+      long: progress
+      help: 'Shows progress'
   - scan_size:
       long: scan-size
       value_name: SCAN_SIZE
-      help: 'Configures how many keys are fetched at a time. (default: 100)'
+      help: 'Configures how many keys are fetched at a time.'
       takes_value: true
       default_value: '100'
+  - separators:
+      long: separators
+      short: s
+      value_name: SEPARATORS
+      help: 'List of key separators.'
+      takes_value: true
+      default_value: ':/|'
+  - full_keys:
+      long: full-keys
+      help: 'Shows full keys in result instead of just suffixes.'
+  - urls:
+      short: u
+      long: urls
+      value_name: URL1,URL2
+      help: List of URLs to scan.
+      takes_value: true
+      required: true
 
