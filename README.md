@@ -1,5 +1,13 @@
 # Memory Analyzer
 
+## Installation
+
+You'll need rust and cargo. See [here](https://doc.rust-lang.org/cargo/getting-started/installation.html) for instructions on how to get them.
+
+Then you can just run `cargo install redis-analyzer` to install it.
+
+Alternatively, to build it yourself, clone the repository and run `cargo build --release`.
+
 ## Usage
 
 ```
