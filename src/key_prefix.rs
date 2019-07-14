@@ -1,19 +1,19 @@
-use std::vec::Vec;
 use serde::{Deserialize, Serialize};
+use std::vec::Vec;
 
 #[derive(Serialize, Deserialize)]
-pub struct Prefix {
-    pub value: Option<String>,
+pub struct KeyPrefix {
+    pub value: String,
     pub depth: usize,
     pub keys_count: usize,
     pub memory_usage: usize,
-    pub children: Vec<Prefix>,
+    pub children: Vec<KeyPrefix>,
 }
 
-impl Prefix {
-    pub fn new(prefix: Option<&str>, depth: usize, keys_count: usize, memory_usage: usize) -> Self {
+impl KeyPrefix {
+    pub fn new(prefix: &str, depth: usize, keys_count: usize, memory_usage: usize) -> Self {
         Self {
-            value: prefix.map(|s| s.to_string()),
+            value: prefix.to_string(),
             depth,
             keys_count,
             memory_usage,

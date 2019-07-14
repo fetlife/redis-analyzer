@@ -3,7 +3,7 @@ use regex::Regex;
 use std::cmp::max;
 
 use crate::config::Config;
-use crate::prefix::Prefix;
+use crate::key_prefix::KeyPrefix;
 
 struct FormattingOptions {
     key_column_width: usize,
@@ -12,7 +12,7 @@ struct FormattingOptions {
     separators_regex: Regex,
 }
 
-pub fn call(config: &Config, root_prefix: &Prefix) {
+pub fn call(config: &Config, root_prefix: &KeyPrefix) {
     let mut options = FormattingOptions {
         key_column_width: 0,
         count_column_width: 0,
@@ -47,8 +47,8 @@ pub fn call(config: &Config, root_prefix: &Prefix) {
 
 fn print_tree(
     options: &FormattingOptions,
-    node: &Prefix,
-    parent_node: &Prefix,
+    node: &KeyPrefix,
+    parent_node: &KeyPrefix,
     prefix: String,
     root: bool,
     last: bool,
@@ -101,10 +101,8 @@ fn print_tree(
     }
 }
 
-fn display_key(options: &FormattingOptions, prefix: &Prefix) -> String {
-    let default = "".to_string();
-    let key = prefix.value.as_ref().unwrap_or(&default);
-    // let key = prefix.value.as_ref().unwrap_or("");
+fn display_key(options: &FormattingOptions, prefix: &KeyPrefix) -> String {
+    let key = &prefix.value;
 
     if options.show_full_keys {
         return key.to_string();
@@ -120,8 +118,8 @@ fn display_key(options: &FormattingOptions, prefix: &Prefix) -> String {
 
 fn info_string(
     options: &FormattingOptions,
-    prefix: &Prefix,
-    parent_prefix: &Prefix,
+    prefix: &KeyPrefix,
+    parent_prefix: &KeyPrefix,
     leaf_prefix: &str,
 ) -> String {
     let mut leaf_prefix = leaf_prefix.replace(" ", "-");
@@ -147,7 +145,7 @@ fn info_string(
     )
 }
 
-fn display_count(prefix: &Prefix, parent_prefix: &Prefix) -> String {
+fn display_count(prefix: &KeyPrefix, parent_prefix: &KeyPrefix) -> String {
     format!(
         "{count} ({percentage:.2}%) ",
         count = prefix.keys_count,
@@ -155,12 +153,12 @@ fn display_count(prefix: &Prefix, parent_prefix: &Prefix) -> String {
     )
 }
 
-fn calculate_key_column_width(options: &FormattingOptions, root_prefix: &Prefix) -> usize {
+fn calculate_key_column_width(options: &FormattingOptions, root_prefix: &KeyPrefix) -> usize {
     let padding = 5;
     biggest_key_length(options, root_prefix) + padding
 }
 
-fn biggest_key_length(options: &FormattingOptions, prefix: &Prefix) -> usize {
+fn biggest_key_length(options: &FormattingOptions, prefix: &KeyPrefix) -> usize {
     let display_value = display_key(options, prefix);
     let length = display_value.len() + prefix.depth * 4;
 
@@ -169,15 +167,15 @@ fn biggest_key_length(options: &FormattingOptions, prefix: &Prefix) -> usize {
     })
 }
 
-fn calculate_count_column_width(options: &FormattingOptions, root_prefix: &Prefix) -> usize {
+fn calculate_count_column_width(options: &FormattingOptions, root_prefix: &KeyPrefix) -> usize {
     let padding = 3;
     biggest_count_length(options, root_prefix, root_prefix) + padding
 }
 
 fn biggest_count_length(
     options: &FormattingOptions,
-    prefix: &Prefix,
-    parent_prefix: &Prefix,
+    prefix: &KeyPrefix,
+    parent_prefix: &KeyPrefix,
 ) -> usize {
     let display_value = display_count(prefix, parent_prefix);
     let length = display_value.len() + prefix.depth * 4;
