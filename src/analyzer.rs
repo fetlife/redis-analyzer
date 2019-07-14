@@ -3,6 +3,7 @@ use frequency_hashmap::HashMapFrequency;
 use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 use redis;
+use std::ops::DerefMut;
 use std::sync::{Arc, Mutex};
 
 use crate::config::{Config, SortOrder};
@@ -23,13 +24,13 @@ pub fn run(config: &mut Config) -> Result {
     Result { root_prefix }
 }
 
-fn analyze_count(config: &mut Config, prefix_stats: &mut KeyPrefix) {
+fn analyze_count(config: &mut Config, prefix: &mut KeyPrefix) {
     let frequency: HashMapFrequency<String> = HashMapFrequency::new();
     let frequency_mutex = Arc::new(Mutex::new(frequency));
     let separator = config.separators_regex();
     let bar = if config.progress {
-        println!("Scanning {}", prefix_stats.value,);
-        ProgressBar::new(prefix_stats.keys_count as u64)
+        println!("Scanning {}", prefix.value,);
+        ProgressBar::new(prefix.keys_count as u64)
     } else {
         ProgressBar::hidden()
     };
@@ -47,10 +48,10 @@ fn analyze_count(config: &mut Config, prefix_stats: &mut KeyPrefix) {
             .arg(scan_size)
             .clone();
 
-        if !prefix_stats.value.is_empty() {
+        if !prefix.value.is_empty() {
             scan_command = scan_command
                 .arg("MATCH")
-                .arg(format!("{}*", prefix_stats.value))
+                .arg(format!("{}*", prefix.value))
                 .clone();
         }
 
@@ -66,7 +67,7 @@ fn analyze_count(config: &mut Config, prefix_stats: &mut KeyPrefix) {
 
             let mut separator_positions = separator.find_iter(&key);
 
-            let prefix = match separator_positions.nth(prefix_stats.depth) {
+            let prefix = match separator_positions.nth(prefix.depth) {
                 None => key,
                 Some(position) => unsafe { key.get_unchecked(0..position.start()) }.to_string(),
             };
@@ -78,28 +79,25 @@ fn analyze_count(config: &mut Config, prefix_stats: &mut KeyPrefix) {
     bar.finish();
 
     for (prefix_value, count) in frequency_mutex.lock().unwrap().iter() {
-        let mut child = KeyPrefix::new(prefix_value, prefix_stats.depth + 1, *count, 0);
+        let mut child = KeyPrefix::new(prefix_value, prefix.depth + 1, *count, 0);
 
         let child_absolute_frequency = *count as f32 / config.all_keys_count as f32 * 100.;
 
-        if prefix_stats.depth < config.max_depth
-            && child_absolute_frequency > config.min_prefix_frequency
+        if prefix.depth < config.max_depth && child_absolute_frequency > config.min_prefix_frequency
         {
             analyze_count(config, &mut child);
-            prefix_stats.children.push(child);
-        } else if prefix_stats.depth == 0 && *count > 100 {
-            prefix_stats.children.push(child);
+            prefix.children.push(child);
+        } else if prefix.depth == 0 && *count > 100 {
+            prefix.children.push(child);
         }
     }
 }
 
-fn analyze_memory_usage(config: &mut Config, prefix_stats: &mut KeyPrefix) {
-    let mut cursor: u64 = 0;
-
+fn analyze_memory_usage(config: &mut Config, prefix: &mut KeyPrefix) {
     let bar = if config.progress {
         println!();
         println!("Memory scanning");
-        ProgressBar::new(prefix_stats.keys_count as u64)
+        ProgressBar::new(prefix.keys_count as u64)
     } else {
         ProgressBar::hidden()
     };
@@ -110,12 +108,17 @@ fn analyze_memory_usage(config: &mut Config, prefix_stats: &mut KeyPrefix) {
         ),
     );
 
-    for database in config.databases.iter_mut() {
+    let scan_size = config.scan_size;
+    let prefix_mutex = Arc::new(Mutex::new(prefix));
+
+    config.databases.par_iter_mut().for_each(|database| {
+        let mut cursor: u64 = 0;
+
         loop {
             let scan_command = redis::cmd("SCAN")
                 .cursor_arg(cursor)
                 .arg("COUNT")
-                .arg(config.scan_size)
+                .arg(scan_size)
                 .clone();
 
             let (new_cursor, keys): (u64, Vec<String>) =
@@ -140,14 +143,14 @@ fn analyze_memory_usage(config: &mut Config, prefix_stats: &mut KeyPrefix) {
             bar.inc(keys.len() as u64);
 
             for (key, memory_usage) in keys.iter().zip(memory_usages.iter()) {
-                record_memory_usage(prefix_stats, key, *memory_usage);
+                record_memory_usage(prefix_mutex.lock().unwrap().deref_mut(), key, *memory_usage);
             }
 
             if cursor == 0 {
                 break;
             }
         }
-    }
+    });
 
     bar.finish();
 }
