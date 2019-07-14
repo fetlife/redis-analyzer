@@ -1,5 +1,23 @@
 # Redis Analyzer
 
+Console tool to scan keys in Redis database in real time and aggregate count and memory usage statistics by key prefixes.
+
+Features:
+
+* Keys count and memory usage statistics
+* Concurrent scanning of multiple Redis databases
+* Low memory signature
+* Fast (scans instances with dozens of millions of keys in few minutes)
+
+## Motivation
+
+There are already good tools out there doing similar job with even more features:
+
+* [redis-memory-analyzer](https://github.com/gamenet/redis-memory-analyzer)
+* [redis-audit](https://github.com/snmaynard/redis-audit)
+
+But using them on big Redis databases with millions of keys is not viable because of memory requirements and time it takes to complete the full scan.
+
 ## Installation
 
 You'll need rust and cargo. See [here](https://doc.rust-lang.org/cargo/getting-started/installation.html) for instructions on how to get them.
@@ -10,7 +28,7 @@ Alternatively, to build it yourself, clone the repository and run `cargo build -
 
 ## Usage
 
-```
+```text
 # redis-analyzer --help
 
 redis-analyzer 0.1.1
@@ -46,7 +64,7 @@ OPTIONS:
 
 Example output:
 
-```
+```text
 $ redis-analyzer -u 127.0.0.1:6379/0,127.0.0.1:6379/2
                           Key Count                        Memory Usage
 ALL ---------------------- 15155 (100.00%) ---------------- 26.88MB (100.00%)
@@ -67,8 +85,9 @@ ALL ---------------------- 15155 (100.00%) ---------------- 26.88MB (100.00%)
  └─ [other] ---------------└─ 200 (1.32%) ------------------└─ 20.39MB (75.86%)
 ```
 
-```
+```text
 $ redis-analyzer -u 127.0.0.1:6379/0,127.0.0.1:6379/2 -d 1
+                Key Count             Memory Usage
 ALL ------------ 15155 (100.00%) ----- 26.88MB (100.00%)
  ├─ cache -------├─ 294 (1.94%) -------├─ 2.04MB (7.60%)
  ├─ feed --------├─ 158 (1.04%) -------├─ 1.60MB (5.97%)
@@ -79,7 +98,7 @@ ALL ------------ 15155 (100.00%) ----- 26.88MB (100.00%)
  └─ [other] -----└─ 200 (1.32%) -------└─ 20.39MB (75.86%)
 ```
 
-```
+```text
 $ redis-analyzer -u 127.0.0.1:6379/0,127.0.0.1:6379/2 -d 1 --order count
                 Key Count             Memory Usage
 ALL ------------ 15155 (100.00%) ----- 26.88MB (100.00%)
