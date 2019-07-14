@@ -5,32 +5,33 @@ args:
       short: u
       long: urls
       value_name: URLS
-      help: List of URLs to scan
+      help: List of URLs to scan.
       takes_value: true
       required: true
   - separators:
       short: s
       long: separators
       value_name: SEPARATORS
-      help: 'List of key separators (default: ":/|" )'
+      help: 'List of key separators. (default: ":/|" )'
       takes_value: true
   - max_depth:
       short: d
       long: max-depth
       value_name: MAX_DEPTH
-      help: 'Maximum key depth to examine (default: not limited)'
+      help: 'Maximum key depth to examine. (default: not limited)'
       takes_value: true
   - min_prefix_frequency:
       short: f
       long: min-prefix-frequency
       value_name: MIN_PREFIX_FREQUENCY_PERCENTAGE
-      help: 'Minimum prefix frequency in percentages for prefix to be included in the result (default: 1)'
+      help: 'Minimum prefix frequency in percentages for prefix to be included in the result. (default: 1)'
       takes_value: true
+      default_value: '1.0'
   - max_parallelism:
       short: p
       long: max-parallelism
       value_name: MAX_PARALLELISM
-      help: 'Maximum number of hosts scanned at the same time (default: number of logical CPUs)'
+      help: 'Maximum number of hosts scanned at the same time. (default: number of logical CPUs)'
       takes_value: true
   - progress:
       long: progress
@@ -38,14 +39,20 @@ args:
   - sort:
       long: sort
       value_name: count|memory
-      help: 'Sort order (defalt: memory)'
+      help: 'Sort order. (defalt: memory)'
       takes_value: true
   - format:
       long: format
       value_name: plain|json
-      help: 'Output format (default: plain)'
+      help: 'Output format. (default: plain)'
       takes_value: true
   - show_full_keys:
       long: show-full-keys
-      help: 'Shows full keys in result instead of just suffixes'
+      help: 'Shows full keys in result instead of just suffixes.'
+  - scan_size:
+      long: scan-size
+      value_name: SCAN_SIZE
+      help: 'Configures how many keys are fetched at a time. (default: 100)'
+      takes_value: true
+      default_value: '100'
 

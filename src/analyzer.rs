@@ -34,6 +34,8 @@ fn analyze_count(config: &mut Config, prefix_stats: &mut KeyPrefix) {
         ProgressBar::hidden()
     };
 
+    let scan_size = config.scan_size;
+
     config.databases.par_iter_mut().for_each(|database| {
         bar.set_style(ProgressStyle::default_bar().template(
             "[{elapsed_precise}] {wide_bar} {pos}/{len} ({percent}%) [ETA: {eta_precise}]",
@@ -42,7 +44,7 @@ fn analyze_count(config: &mut Config, prefix_stats: &mut KeyPrefix) {
         let mut scan_command = redis::cmd("SCAN")
             .cursor_arg(0)
             .arg("COUNT")
-            .arg("100")
+            .arg(scan_size)
             .clone();
 
         if !prefix_stats.value.is_empty() {
@@ -93,8 +95,6 @@ fn analyze_count(config: &mut Config, prefix_stats: &mut KeyPrefix) {
 
 fn analyze_memory_usage(config: &mut Config, prefix_stats: &mut KeyPrefix) {
     let mut cursor: u64 = 0;
-    let scan_size = 100;
-    let scan_size_arg = format!("{}", scan_size);
 
     let bar = if config.progress {
         println!();
@@ -115,7 +115,7 @@ fn analyze_memory_usage(config: &mut Config, prefix_stats: &mut KeyPrefix) {
             let scan_command = redis::cmd("SCAN")
                 .cursor_arg(cursor)
                 .arg("COUNT")
-                .arg(&scan_size_arg)
+                .arg(config.scan_size)
                 .clone();
 
             let (new_cursor, keys): (u64, Vec<String>) =

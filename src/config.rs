@@ -15,6 +15,7 @@ pub struct Config {
     pub show_full_keys: bool,
     pub output_format: OutputFormat,
     pub sort_order: SortOrder,
+    pub scan_size: usize,
 }
 
 impl Config {
@@ -28,10 +29,9 @@ impl Config {
             .map_or(999, |s| s.parse().expect("max-depth needs to be a number"));
         let min_prefix_frequency = arg_matches
             .value_of("min_prefix_frequency")
-            .map_or(1., |s| {
-                s.parse()
-                    .expect("min-prefix-frequency needs to be a number")
-            });
+            .unwrap()
+            .parse()
+            .expect("min-prefix-frequency needs to be a number");
 
         let databases = parse_and_build_databases(&arg_matches);
         let all_keys_count: usize = databases
@@ -49,6 +49,7 @@ impl Config {
             show_full_keys: arg_matches.is_present("show_full_keys"),
             output_format: parse_output_format(&arg_matches),
             sort_order: parse_sort_order(&arg_matches),
+            scan_size: parse_usize(&arg_matches, "scan_size"),
         }
     }
     pub fn separators_regex(&self) -> Regex {
@@ -128,4 +129,12 @@ fn parse_and_build_databases(arg_matches: &ArgMatches) -> Vec<Database> {
             }
         })
         .collect()
+}
+
+fn parse_usize(arg_matches: &ArgMatches, key: &str) -> usize {
+    arg_matches
+        .value_of(key)
+        .unwrap()
+        .parse()
+        .expect(&format!("{} needs to be a number", key.replace("_", "-")))
 }
