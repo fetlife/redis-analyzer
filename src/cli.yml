@@ -38,13 +38,13 @@ args:
       required: false
   - sort:
       long: sort
-      value_name: keys_count|memory_usage
-      help: 'Sort order'
+      value_name: count|memory
+      help: 'Sort order (defalt: memory)'
       takes_value: true
   - format:
       long: format
       value_name: plain|json
-      help: 'Output format'
+      help: 'Output format (default: plain)'
       takes_value: true
         
 

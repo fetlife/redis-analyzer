@@ -13,6 +13,7 @@ pub struct Config {
     pub min_prefix_frequency: f32,
     pub progress: bool,
     pub output_format: OutputFormat,
+    pub sort_order: SortOrder,
 }
 
 impl Config {
@@ -45,6 +46,7 @@ impl Config {
             min_prefix_frequency,
             progress: arg_matches.is_present("progress"),
             output_format: parse_output_format(&arg_matches),
+            sort_order: parse_sort_order(&arg_matches),
         }
     }
     pub fn separators_regex(&self) -> Regex {
@@ -58,6 +60,7 @@ pub enum OutputFormat {
     Json,
 }
 
+#[derive(Debug)]
 pub enum SortOrder {
     KeysCount,
     MemoryUsage,
@@ -69,6 +72,20 @@ fn parse_output_format(arg_matches: &ArgMatches) -> OutputFormat {
         "json" => OutputFormat::Json,
         format => {
             eprintln!("Invalid format: {}", format);
+            process::exit(1);
+        }
+    }
+}
+
+fn parse_sort_order(arg_matches: &ArgMatches) -> SortOrder {
+    match arg_matches.value_of("sort").unwrap_or("memory_usage") {
+        "count" => SortOrder::KeysCount,
+        "keys_count" => SortOrder::KeysCount,
+        "size" => SortOrder::MemoryUsage,
+        "memory" => SortOrder::MemoryUsage,
+        "memory_usage" => SortOrder::MemoryUsage,
+        sort_order => {
+            eprintln!("Invalid sort order: {}", sort_order);
             process::exit(1);
         }
     }

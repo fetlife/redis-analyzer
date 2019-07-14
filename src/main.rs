@@ -13,7 +13,7 @@ pub mod database;
 pub mod prefix;
 pub mod result_formatters;
 
-use crate::config::Config;
+use crate::config::{Config, SortOrder};
 use crate::prefix::Prefix;
 
 fn main() {
@@ -24,19 +24,22 @@ fn main() {
     gather_stats(&mut config, &mut root_prefix);
     gather_memory_usage_stats(&mut config, &mut root_prefix);
 
-    sort(&mut root_prefix);
+    sort(&config, &mut root_prefix);
 
     add_other(&config, &mut root_prefix);
 
     result_formatters::call(&config, &root_prefix);
 }
 
-fn sort(prefix: &mut Prefix) {
+fn sort(config: &Config, prefix: &mut Prefix) {
     if prefix.children.is_empty() {
         return;
     }
 
-    prefix.children.sort_by_key(|c| c.memory_usage);
+    prefix.children.sort_by_key(|c| match config.sort_order {
+        SortOrder::KeysCount => c.keys_count,
+        SortOrder::MemoryUsage => c.memory_usage,
+    });
     prefix.children.reverse();
 }
 
