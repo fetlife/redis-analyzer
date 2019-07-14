@@ -77,6 +77,9 @@ fn print_tree(
 }
 
 pub fn key_suffix(key: &str, config: &Config) -> String {
+    if config.show_full_keys {
+        return key.to_string();
+    }
     let separator = config.separators_regex();
     let separator_positions = separator.find_iter(&key);
 

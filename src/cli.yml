@@ -35,7 +35,6 @@ args:
   - progress:
       long: progress
       help: 'Shows progress'
-      required: false
   - sort:
       long: sort
       value_name: count|memory
@@ -46,5 +45,7 @@ args:
       value_name: plain|json
       help: 'Output format (default: plain)'
       takes_value: true
-        
+  - show_full_keys:
+      long: show-full-keys
+      help: 'Shows full keys in result instead of just suffixes'
 

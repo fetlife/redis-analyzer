@@ -12,6 +12,7 @@ pub struct Config {
     pub max_parallelism: usize,
     pub min_prefix_frequency: f32,
     pub progress: bool,
+    pub show_full_keys: bool,
     pub output_format: OutputFormat,
     pub sort_order: SortOrder,
 }
@@ -45,6 +46,7 @@ impl Config {
             max_parallelism: parse_and_configure_max_parallelism(&arg_matches),
             min_prefix_frequency,
             progress: arg_matches.is_present("progress"),
+            show_full_keys: arg_matches.is_present("show_full_keys"),
             output_format: parse_output_format(&arg_matches),
             sort_order: parse_sort_order(&arg_matches),
         }
