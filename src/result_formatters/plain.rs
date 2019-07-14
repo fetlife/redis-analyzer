@@ -13,14 +13,6 @@ struct FormattingOptions {
 }
 
 pub fn call(config: &Config, root_prefix: &Prefix) {
-    println!(
-        "{:indent$}Key Count{:indenx$}Memory Usage",
-        "",
-        "",
-        indent = 29,
-        indenx = 31,
-    );
-
     let mut options = FormattingOptions {
         key_column_width: 0,
         count_column_width: 0,
@@ -33,6 +25,14 @@ pub fn call(config: &Config, root_prefix: &Prefix) {
 
     options.key_column_width = key_column_width;
     options.count_column_width = count_column_width;
+
+    println!(
+        "{:indent$}Key Count{:indenx$}Memory Usage",
+        "",
+        "",
+        indent = options.key_column_width,
+        indenx = options.count_column_width - 9,
+    );
 
     print_tree(
         &options,

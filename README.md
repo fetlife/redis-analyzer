@@ -32,7 +32,6 @@ OPTIONS:
 
 ## Preview
 
-
 Example output:
 
 ```
