@@ -11,6 +11,7 @@ description = "Analyzes keys in Redis to produce breakdown of the most frequent 
 clap = { version = "2.33", features = ["yaml"] }
 frequency = "^1.0"
 frequency-hashmap = "^1.1"
+humantime = "^1.2"
 indicatif = "~0.11.0"
 num_cpus = "^1.10"
 rayon = "^1.1"

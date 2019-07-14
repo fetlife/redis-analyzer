@@ -1,7 +1,9 @@
+use humantime::format_duration;
 use indicatif::HumanBytes;
 use regex::Regex;
 use std::cmp::max;
 
+use crate::analyzer::Result;
 use crate::config::Config;
 use crate::key_prefix::KeyPrefix;
 
@@ -12,7 +14,7 @@ struct FormattingOptions {
     separators_regex: Regex,
 }
 
-pub fn call(config: &Config, root_prefix: &KeyPrefix) {
+pub fn call(config: &Config, result: &Result) {
     let mut options = FormattingOptions {
         key_column_width: 0,
         count_column_width: 0,
@@ -20,12 +22,13 @@ pub fn call(config: &Config, root_prefix: &KeyPrefix) {
         separators_regex: config.separators_regex(),
     };
 
-    let key_column_width = calculate_key_column_width(&options, &root_prefix);
-    let count_column_width = calculate_count_column_width(&options, &root_prefix);
+    let key_column_width = calculate_key_column_width(&options, &result.root_prefix);
+    let count_column_width = calculate_count_column_width(&options, &result.root_prefix);
 
     options.key_column_width = key_column_width;
     options.count_column_width = count_column_width;
 
+    println!("Took {}", format_duration(result.took));
     println!(
         "{:indent$}Key Count{:indenx$}Memory Usage",
         "",
@@ -36,8 +39,8 @@ pub fn call(config: &Config, root_prefix: &KeyPrefix) {
 
     print_tree(
         &options,
-        &root_prefix,
-        &root_prefix,
+        &result.root_prefix,
+        &result.root_prefix,
         "".to_string(),
         true,
         false,

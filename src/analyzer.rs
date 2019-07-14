@@ -5,23 +5,29 @@ use rayon::prelude::*;
 use redis;
 use std::ops::DerefMut;
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, SystemTime};
 
 use crate::config::{Config, SortOrder};
 use crate::key_prefix::KeyPrefix;
 
 pub struct Result {
     pub root_prefix: KeyPrefix,
+    pub took: Duration,
 }
 
 pub fn run(config: &mut Config) -> Result {
     let mut root_prefix = KeyPrefix::new("", 0, config.all_keys_count, 0);
+
+    let now = SystemTime::now();
 
     analyze_count(config, &mut root_prefix);
     analyze_memory_usage(config, &mut root_prefix);
     reorder(&config, &mut root_prefix);
     backfill_other_keys(&config, &mut root_prefix);
 
-    Result { root_prefix }
+    let took = now.elapsed().unwrap();
+
+    Result { root_prefix, took }
 }
 
 fn analyze_count(config: &mut Config, prefix: &mut KeyPrefix) {

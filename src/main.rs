@@ -13,5 +13,5 @@ fn main() {
     let mut config = Config::new();
     let result = analyzer::run(&mut config);
 
-    result_formatters::call(&config, &result.root_prefix);
+    result_formatters::call(&config, &result);
 }
