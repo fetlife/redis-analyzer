@@ -17,6 +17,7 @@ FLAGS:
     -V, --version     Prints version information
 
 OPTIONS:
+        --format <plain|json>                                       Output format (default: plain)
     -d, --max-depth <MAX_DEPTH>                                     Maximum key depth to examine (default: not limited)
     -p, --max-parallelism <MAX_PARALLELISM>
             Maximum number of hosts scanned at the same time (default: number of logical CPUs)
@@ -25,6 +26,7 @@ OPTIONS:
             Minimum prefix frequency in percentages for prefix to be included in the result (default: 1)
 
     -s, --separators <SEPARATORS>                                   List of key separators (default: ":/|" )
+        --sort <count|memory>                                       Sort order (defalt: memory)
     -u, --urls <URLS>                                               List of URLs to scan
 ```
 
