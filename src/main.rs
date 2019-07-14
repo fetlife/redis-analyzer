@@ -28,7 +28,7 @@ fn main() {
 
     add_other(&config, &mut root_prefix);
 
-    result_formatters::plain::call(&config, &root_prefix);
+    result_formatters::call(&config, &root_prefix);
 }
 
 fn sort(prefix: &mut Prefix) {

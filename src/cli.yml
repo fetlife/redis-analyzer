@@ -38,7 +38,13 @@ args:
       required: false
   - sort:
       long: sort
-      value_name: SORT_BY
-      help: 'Maximum number of hosts scanned at the same time (default: number of logical CPUs)'
+      value_name: keys_count|memory_usage
+      help: 'Sort order'
       takes_value: true
+  - format:
+      long: format
+      value_name: plain|json
+      help: 'Output format'
+      takes_value: true
+        
 

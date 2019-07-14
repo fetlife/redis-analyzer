@@ -1,5 +1,6 @@
 use clap::App;
 use regex::Regex;
+use std::process;
 
 use crate::database::Database;
 
@@ -11,6 +12,7 @@ pub struct Config {
     pub max_parallelism: usize,
     pub min_prefix_frequency: f32,
     pub progress: bool,
+    pub output_format: OutputFormat,
 }
 
 impl Config {
@@ -63,6 +65,15 @@ impl Config {
             .iter()
             .fold(0, |acc, database| acc + database.keys_count);
 
+        let output_format = match arg_matches.value_of("format").unwrap_or("plain") {
+            "plain" => OutputFormat::Plain,
+            "json" => OutputFormat::Json,
+            format => {
+                eprintln!("Invalid format: {}", format);
+                process::exit(1);
+            }
+        };
+
         Self {
             databases,
             all_keys_count,
@@ -71,9 +82,16 @@ impl Config {
             max_parallelism,
             min_prefix_frequency,
             progress: arg_matches.is_present("progress"),
+            output_format,
         }
     }
     pub fn separators_regex(&self) -> Regex {
         Regex::new(&format!("[{}]+", self.separators)).unwrap()
     }
+}
+
+#[derive(Debug)]
+pub enum OutputFormat {
+    Plain,
+    Json,
 }

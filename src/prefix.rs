@@ -1,5 +1,7 @@
 use std::vec::Vec;
+use serde::{Deserialize, Serialize};
 
+#[derive(Serialize, Deserialize)]
 pub struct Prefix {
     pub value: Option<String>,
     pub depth: usize,
