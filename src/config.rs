@@ -115,11 +115,14 @@ fn parse_and_build_databases(arg_matches: &ArgMatches) -> Vec<Database> {
     urls.iter()
         .map(|host| {
             let url = format!("redis://{}", host);
-            let client = redis::Client::open(url.as_ref()).expect("connect to redis");
-            let connection = client.get_connection().expect("getting connection");
+            let client =
+                redis::Client::open(url.as_ref()).expect(&format!("creating client ({})", host));
+            let connection = client
+                .get_connection()
+                .expect(&format!("connecting ({})", host));
             let keys_count: usize = redis::cmd("DBSIZE")
                 .query(&connection)
-                .expect("getting dbsize");
+                .expect(&format!("getting dbsize ({})", host));
 
             Database {
                 host: host.to_string(),
