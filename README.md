@@ -31,7 +31,7 @@ Alternatively, to build it yourself, clone the repository and run `cargo build -
 ```text
 # redis-analyzer --help
 
-redis-analyzer 0.1.1
+redis-analyzer 0.2.0
 Analyzes keys in Redis to produce breakdown of the most frequent prefixes.
 
 USAGE:
