@@ -133,7 +133,7 @@ fn info_string(
     }
     let keys_count = display_count(prefix, parent_prefix);
     let memory_usage = format!(
-        "{memory_usage} ({percentage:.2}%) ",
+        "{memory_usage} ({percentage:.2}%)",
         memory_usage = format!("{}", HumanBytes(prefix.memory_usage as u64)),
         percentage = prefix.memory_usage as f32 / parent_prefix.memory_usage as f32 * 100.,
     );
