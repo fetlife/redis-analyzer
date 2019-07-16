@@ -16,6 +16,7 @@ pub struct Config {
     pub output_format: OutputFormat,
     pub sort_order: SortOrder,
     pub scan_size: usize,
+    pub memory_usage_samples: usize,
 }
 
 impl Config {
@@ -50,6 +51,7 @@ impl Config {
             output_format: parse_output_format(&arg_matches),
             sort_order: parse_sort_order(&arg_matches),
             scan_size: parse_usize(&arg_matches, "scan_size"),
+            memory_usage_samples: parse_usize(&arg_matches, "memory_usage_samples"),
         }
     }
     pub fn separators_regex(&self) -> Regex {

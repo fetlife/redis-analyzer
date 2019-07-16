@@ -114,6 +114,7 @@ fn analyze_memory_usage(config: &mut Config, prefix: &mut KeyPrefix) {
     );
 
     let scan_size = config.scan_size;
+    let memory_usage_samples = config.memory_usage_samples;
     let prefix_mutex = Arc::new(Mutex::new(prefix));
 
     config.databases.par_iter_mut().for_each(|database| {
@@ -138,6 +139,8 @@ fn analyze_memory_usage(config: &mut Config, prefix: &mut KeyPrefix) {
                     .cmd("MEMORY")
                     .arg("USAGE")
                     .arg(key)
+                    .arg("SAMPLES")
+                    .arg(memory_usage_samples)
                     .clone();
             }
 

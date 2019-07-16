@@ -19,6 +19,15 @@ args:
       value_name: plain|json
       help: 'Output format. (default: plain)'
       takes_value: true
+  - full_keys:
+      long: full-keys
+      help: 'Shows full keys in result instead of just suffixes.'
+  - memory_usage_samples:
+      long: memory-usage-samples
+      value_name: MEMORY_USAGE_SAMPLES
+      help: 'Number of samples used with memory usage redis command (this is only relevant for nested values, to sample the all of the nested values, use 0)'
+      takes_value: true
+      default_value: '5'
   - min_count_percentage:
       long: min-count-percentage
       value_name: MIN_PREFIX_COUNT_PERCENTAGE
@@ -47,9 +56,6 @@ args:
       help: 'List of key separators.'
       takes_value: true
       default_value: ':/|'
-  - full_keys:
-      long: full-keys
-      help: 'Shows full keys in result instead of just suffixes.'
   - urls:
       short: u
       long: urls
