@@ -92,8 +92,6 @@ fn analyze_count(config: &mut Config, prefix: &mut KeyPrefix) {
         if prefix.depth < config.depth && child_absolute_frequency > config.min_count_percentage {
             analyze_count(config, &mut child);
             prefix.children.push(child);
-        } else if prefix.depth == 0 && *count > 100 {
-            prefix.children.push(child);
         }
     }
 }
