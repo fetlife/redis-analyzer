@@ -46,7 +46,7 @@ fn analyze_count(config: &mut Config, prefix: &mut KeyPrefix) {
     config.databases.par_iter_mut().for_each(|database| {
         bar.set_style(ProgressStyle::default_bar().template(
             "[{elapsed_precise}] {wide_bar} {pos}/{len} ({percent}%) [ETA: {eta_precise}]",
-        ));
+        ).expect("Failed to set progress bar style"));
 
         let mut scan_command = redis::cmd("SCAN")
             .cursor_arg(0)
@@ -63,7 +63,7 @@ fn analyze_count(config: &mut Config, prefix: &mut KeyPrefix) {
 
         let iter: redis::Iter<String> = scan_command
             .clone()
-            .iter(&database.connection)
+            .iter(&mut database.connection)
             .expect("running scan");
 
         for (i, key) in iter.enumerate() {
@@ -108,7 +108,7 @@ fn analyze_memory_usage(config: &mut Config, prefix: &mut KeyPrefix) {
     bar.set_style(
         ProgressStyle::default_bar().template(
             "[{elapsed_precise}] {wide_bar} {pos}/{len} ({percent}%) [ETA: {eta_precise}]",
-        ),
+        ).expect("failed to set progress bar style"),
     );
 
     let scan_size = config.scan_size;
@@ -126,7 +126,7 @@ fn analyze_memory_usage(config: &mut Config, prefix: &mut KeyPrefix) {
                 .clone();
 
             let (new_cursor, keys): (u64, Vec<String>) =
-                scan_command.query(&database.connection).expect("scan");
+                scan_command.query(&mut database.connection).expect("scan");
 
             cursor = new_cursor;
 
@@ -143,7 +143,7 @@ fn analyze_memory_usage(config: &mut Config, prefix: &mut KeyPrefix) {
             }
 
             let memory_usages: Vec<usize> = memory_usage_command
-                .query(&database.connection)
+                .query(&mut database.connection)
                 .expect("memory usage command");
 
             bar.inc(keys.len() as u64);
