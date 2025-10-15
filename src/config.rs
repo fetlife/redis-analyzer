@@ -116,7 +116,14 @@ fn parse_and_build_databases(arg_matches: &ArgMatches) -> Vec<Database> {
 
     urls.iter()
         .map(|host| {
-            let url = format!("redis://{}", host);
+            // Parse the host to determine if it already has a protocol
+            let url = if host.starts_with("redis://") || host.starts_with("rediss://") {
+                host.to_string()
+            } else {
+                // Default to redis:// for backward compatibility
+                format!("redis://{}", host)
+            };
+
             let client =
                 redis::Client::open(url.as_ref()).expect(&format!("creating client ({})", host));
             let mut connection = client

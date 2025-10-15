@@ -100,7 +100,7 @@ ALL -----------14971 (100.00%) ------7.29MB (100.00%)
 ```
 
 ```text
-$ redis-analyzer -u 127.0.0.1:6379/0 -d 2 --order count --full-keys
+$ redis-analyzer -u rediss://:password@127.0.0.1:6379/0 -d 2 --order count --full-keys --progress
 Took 838ms 811us
                          Keys Count               Memory Usage
 ALL ---------------------14971 (100.00%) --------7.29MB (100.00%)

@@ -10,6 +10,11 @@ pub mod result_formatters;
 use crate::config::Config;
 
 fn main() {
+    // Initialize Rustls crypto provider for TLS support
+    rustls::crypto::ring::default_provider()
+        .install_default()
+        .expect("Failed to install rustls crypto provider");
+
     let mut config = Config::new();
     let result = analyzer::run(&mut config);
 
