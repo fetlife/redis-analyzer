@@ -1,4 +1,5 @@
 use clap::Parser;
+use eyre::Result;
 use regex::Regex;
 
 use crate::database::Database;
@@ -83,7 +84,7 @@ impl Config {
             output_format: args.format,
             sort_order: args.order,
             scan_size: args.scan_size,
-            memory_usage_samples: args.memory_usage_samples
+            memory_usage_samples: args.memory_usage_samples,
         }
     }
 
@@ -105,7 +106,7 @@ pub enum SortOrder {
     MemoryUsage,
 }
 
-fn parse_and_build_databases(urls: &[String]) -> Vec<Database> {
+fn parse_and_build_databases(urls: &[String]) -> Result<Vec<Database>> {
     urls.iter()
         .map(|host| {
             let url = format!("redis://{}", host);

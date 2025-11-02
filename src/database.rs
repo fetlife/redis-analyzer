@@ -1,5 +1,3 @@
-
-
 pub struct Database {
     pub host: String,
     pub url: String,

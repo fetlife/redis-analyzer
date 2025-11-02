@@ -44,9 +44,13 @@ fn analyze_count(config: &mut Config, prefix: &mut KeyPrefix) {
     let scan_size = config.scan_size;
 
     config.databases.par_iter_mut().for_each(|database| {
-        bar.set_style(ProgressStyle::default_bar().template(
-            "[{elapsed_precise}] {wide_bar} {pos}/{len} ({percent}%) [ETA: {eta_precise}]",
-        ).expect("Failed to set progress bar style"));
+        bar.set_style(
+            ProgressStyle::default_bar()
+                .template(
+                    "[{elapsed_precise}] {wide_bar} {pos}/{len} ({percent}%) [ETA: {eta_precise}]",
+                )
+                .expect("Failed to set progress bar style"),
+        );
 
         let mut scan_command = redis::cmd("SCAN")
             .cursor_arg(0)
@@ -106,9 +110,11 @@ fn analyze_memory_usage(config: &mut Config, prefix: &mut KeyPrefix) {
     };
 
     bar.set_style(
-        ProgressStyle::default_bar().template(
-            "[{elapsed_precise}] {wide_bar} {pos}/{len} ({percent}%) [ETA: {eta_precise}]",
-        ).expect("failed to set progress bar style"),
+        ProgressStyle::default_bar()
+            .template(
+                "[{elapsed_precise}] {wide_bar} {pos}/{len} ({percent}%) [ETA: {eta_precise}]",
+            )
+            .expect("failed to set progress bar style"),
     );
 
     let scan_size = config.scan_size;
