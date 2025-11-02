@@ -1,5 +1,6 @@
-use clap::Parser;
-use eyre::Result;
+use clap::{Parser, ValueEnum};
+use color_eyre::eyre::Context as _;
+use color_eyre::Result;
 use regex::Regex;
 
 use crate::database::Database;
@@ -59,10 +60,11 @@ struct Args {
 }
 
 impl Config {
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self> {
         let args = Args::parse();
 
-        let databases = parse_and_build_databases(&args.urls);
+        let databases =
+            parse_and_build_databases(&args.urls).wrap_err("failed to build databases")?;
         let all_keys_count: usize = databases
             .iter()
             .fold(0, |acc, database| acc + database.keys_count);
@@ -70,9 +72,9 @@ impl Config {
         rayon::ThreadPoolBuilder::new()
             .num_threads(args.concurrency)
             .build_global()
-            .unwrap();
+            .wrap_err("failed to build thread pool")?;
 
-        Self {
+        Ok(Self {
             databases,
             all_keys_count,
             separators: args.separators.to_string(),
@@ -85,7 +87,7 @@ impl Config {
             sort_order: args.order,
             scan_size: args.scan_size,
             memory_usage_samples: args.memory_usage_samples,
-        }
+        })
     }
 
     pub fn separators_regex(&self) -> Regex {
@@ -110,21 +112,21 @@ fn parse_and_build_databases(urls: &[String]) -> Result<Vec<Database>> {
     urls.iter()
         .map(|host| {
             let url = format!("redis://{}", host);
-            let client =
-                redis::Client::open(url.as_ref()).expect(&format!("creating client ({})", host));
+            let client = redis::Client::open(url.as_ref())
+                .wrap_err_with(|| format!("creating client ({})", host))?;
             let mut connection = client
                 .get_connection()
-                .expect(&format!("connecting ({})", host));
+                .wrap_err_with(|| format!("connecting ({})", host))?;
             let keys_count: usize = redis::cmd("DBSIZE")
                 .query(&mut connection)
-                .expect(&format!("getting dbsize ({})", host));
+                .wrap_err_with(|| format!("getting dbsize ({})", host))?;
 
-            Database {
+            Ok(Database {
                 host: host.to_string(),
                 url,
                 keys_count,
                 connection,
-            }
+            })
         })
-        .collect()
+        .collect::<Result<Vec<Database>>>()
 }
