@@ -1,6 +1,6 @@
 [package]
 name = "redis-analyzer"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["FetLife <dev@fetlife.com>"]
 repository = "https://github.com/fetlife/redis-analyzer"
 license = "MIT"
