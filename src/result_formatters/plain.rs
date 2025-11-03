@@ -1,4 +1,3 @@
-use humantime::format_duration;
 use indicatif::HumanBytes;
 use regex::Regex;
 use std::cmp::max;
@@ -28,7 +27,7 @@ pub fn call(config: &Config, result: &Result) {
     options.key_column_width = key_column_width;
     options.count_column_width = count_column_width;
 
-    println!("Took {}", format_duration(result.took));
+    println!("Took {:.2?}", result.took);
     println!(
         "{:indent$}Keys Count{:indenx$}Memory Usage",
         "",
