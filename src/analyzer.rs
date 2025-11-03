@@ -66,11 +66,12 @@ fn analyze_count(config: &mut Config, prefix: &mut KeyPrefix) {
             .iter(&mut database.connection)
             .expect("running scan");
 
-        for (i, key) in iter.enumerate() {
+        for (i, key_result) in iter.enumerate() {
             if i % 10_000 == 0 && i > 0 {
                 bar.inc(10_000);
             }
 
+            let key = key_result.expect("Failed to get key from Redis");
             let mut separator_positions = separator.find_iter(&key);
 
             let prefix = match separator_positions.nth(prefix.depth) {
