@@ -3,6 +3,8 @@ use frequency_hashmap::HashMapFrequency;
 use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 use redis;
+use color_eyre::eyre::Context as _;
+
 use std::ops::DerefMut;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
@@ -22,8 +24,8 @@ pub fn run(config: &mut Config) -> Result {
 
     analyze_count(config, &mut root_prefix);
     analyze_memory_usage(config, &mut root_prefix);
-    reorder(&config, &mut root_prefix);
-    backfill_other_keys(&config, &mut root_prefix);
+    reorder(config, &mut root_prefix);
+    backfill_other_keys(config, &mut root_prefix);
 
     let took = now.elapsed().unwrap();
 
@@ -70,7 +72,15 @@ fn analyze_count(config: &mut Config, prefix: &mut KeyPrefix) {
             .iter(&mut database.connection)
             .expect("running scan");
 
-        for (i, key) in iter.enumerate() {
+        for (i, key_result) in iter.enumerate() {
+            let key = match key_result.wrap_err("failed to get key") {
+                Ok(key) => key,
+                Err(e) => {
+                    eprintln!("failed to get key: {}", e);
+                    continue;
+                }
+            };
+
             if i % 10_000 == 0 && i > 0 {
                 bar.inc(10_000);
             }

@@ -23,7 +23,7 @@ pub fn call(config: &Config, result: &Result) {
     };
 
     let key_column_width = calculate_key_column_width(&options, &result.root_prefix);
-    let count_column_width = calculate_count_column_width(&options, &result.root_prefix);
+    let count_column_width = calculate_count_column_width(&result.root_prefix);
 
     options.key_column_width = key_column_width;
     options.count_column_width = count_column_width;
@@ -94,7 +94,7 @@ fn print_tree(
         for (i, child) in node.children.iter().enumerate() {
             print_tree(
                 options,
-                &child,
+                child,
                 node,
                 prefix.to_string(),
                 false,
@@ -111,7 +111,7 @@ fn display_key(options: &FormattingOptions, prefix: &KeyPrefix) -> String {
     if options.full_keys {
         return key.to_string();
     }
-    let separator_positions = options.separators_regex.find_iter(&key);
+    let separator_positions = options.separators_regex.find_iter(key);
 
     let suffix = match separator_positions.last() {
         None => key,
@@ -134,7 +134,7 @@ fn info_string(
     let keys_count = display_count(prefix, parent_prefix);
     let memory_usage = format!(
         "{memory_usage} ({percentage:.2}%)",
-        memory_usage = format!("{}", HumanBytes(prefix.memory_usage as u64)),
+        memory_usage = HumanBytes(prefix.memory_usage as u64),
         percentage = prefix.memory_usage as f32 / parent_prefix.memory_usage as f32 * 100.,
     );
     let leaf_prefix_with_leaf_prefix = format!(
@@ -173,13 +173,12 @@ fn biggest_key_length(options: &FormattingOptions, prefix: &KeyPrefix) -> usize 
     })
 }
 
-fn calculate_count_column_width(options: &FormattingOptions, root_prefix: &KeyPrefix) -> usize {
+fn calculate_count_column_width(root_prefix: &KeyPrefix) -> usize {
     let padding = 4;
-    biggest_count_length(options, root_prefix, root_prefix) + padding
+    biggest_count_length(root_prefix, root_prefix) + padding
 }
 
 fn biggest_count_length(
-    options: &FormattingOptions,
     prefix: &KeyPrefix,
     parent_prefix: &KeyPrefix,
 ) -> usize {
@@ -187,6 +186,6 @@ fn biggest_count_length(
     let length = display_value.len() + prefix.depth * 3;
 
     prefix.children.iter().fold(length, |acc, child| {
-        max(acc, biggest_count_length(options, child, prefix))
+        max(acc, biggest_count_length(child, prefix))
     })
 }

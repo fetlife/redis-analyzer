@@ -16,7 +16,7 @@ indicatif = "^0.18"
 num_cpus = "^1.17"
 rayon = "^1.11"
 regex = "^1.12"
-redis = "^0.32"
+redis = { version = "^0.32", features = ["safe_iterators"] }
 serde = { version = "^1.0", features = ["derive"] }
 serde_json = "^1.0"
 color-eyre = "0.6.5"
