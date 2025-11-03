@@ -116,16 +116,20 @@ pub enum SortOrder {
 
 fn parse_and_build_databases(urls: &[String]) -> Result<Vec<Database>> {
     urls.iter()
-        .map(|host| {
-            let url = format!("redis://{}", host);
-            let client = redis::Client::open(url.as_ref())
-                .wrap_err_with(|| format!("creating client ({})", host))?;
+        .map(|url| {
+            let url = if url.contains("://") {
+                url.to_string()
+            } else {
+                format!("redis://{}", url)
+            };
+            let client = redis::Client::open(url.clone())
+                .wrap_err_with(|| format!("creating client ({})", url))?;
             let mut connection = client
                 .get_connection()
-                .wrap_err_with(|| format!("connecting ({})", host))?;
+                .wrap_err_with(|| format!("connecting ({})", url))?;
             let keys_count: usize = redis::cmd("DBSIZE")
                 .query(&mut connection)
-                .wrap_err_with(|| format!("getting dbsize ({})", host))?;
+                .wrap_err_with(|| format!("getting dbsize ({})", url))?;
 
             Ok(Database {
                 keys_count,
