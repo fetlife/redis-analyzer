@@ -1,9 +1,17 @@
+use clap::builder::{Styles, styling};
 use clap::{Parser, ValueEnum};
+
 use color_eyre::Result;
 use color_eyre::eyre::Context as _;
 use regex::Regex;
 
 use crate::database::Database;
+
+const CLAP_STYLING: Styles = styling::Styles::styled()
+    .header(styling::AnsiColor::Green.on_default().bold())
+    .usage(styling::AnsiColor::Green.on_default().bold())
+    .literal(styling::AnsiColor::Blue.on_default().bold())
+    .placeholder(styling::AnsiColor::Cyan.on_default());
 
 pub struct Config {
     pub databases: Vec<Database>,
@@ -21,7 +29,7 @@ pub struct Config {
 
 /// Analyzes keys in Redis to produce breakdown of the most frequent prefixes.
 #[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
+#[command(version, about, long_about = None, styles = CLAP_STYLING)]
 struct Args {
     /// Maximum number of hosts scanned at the same time. [default: number of logical CPUs]
     #[arg(short, long, default_value_t = num_cpus::get())]
