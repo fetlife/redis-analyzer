@@ -1,6 +1,6 @@
 use clap::{Parser, ValueEnum};
-use color_eyre::eyre::Context as _;
 use color_eyre::Result;
+use color_eyre::eyre::Context as _;
 use regex::Regex;
 
 use crate::database::Database;
@@ -10,7 +10,6 @@ pub struct Config {
     pub all_keys_count: usize,
     pub separators: String,
     pub depth: usize,
-    pub concurrency: usize,
     pub min_count_percentage: f32,
     pub progress: bool,
     pub full_keys: bool,
@@ -79,7 +78,6 @@ impl Config {
             all_keys_count,
             separators: args.separators.to_string(),
             depth: args.depth,
-            concurrency: args.concurrency,
             min_count_percentage: args.min_count_percentage,
             progress: args.progress,
             full_keys: args.full_keys,
@@ -122,8 +120,6 @@ fn parse_and_build_databases(urls: &[String]) -> Result<Vec<Database>> {
                 .wrap_err_with(|| format!("getting dbsize ({})", host))?;
 
             Ok(Database {
-                host: host.to_string(),
-                url,
                 keys_count,
                 connection,
             })

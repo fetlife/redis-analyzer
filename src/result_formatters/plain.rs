@@ -2,7 +2,8 @@ use indicatif::HumanBytes;
 use regex::Regex;
 use std::cmp::max;
 
-use crate::analyzer::Result;
+use super::Formatter;
+use crate::analyzer::AnalyzerResult;
 use crate::config::Config;
 use crate::key_prefix::KeyPrefix;
 
@@ -13,7 +14,15 @@ struct FormattingOptions {
     separators_regex: Regex,
 }
 
-pub fn call(config: &Config, result: &Result) {
+pub struct PlainFormatter;
+
+impl Formatter for PlainFormatter {
+    fn call(&self, config: &Config, result: &AnalyzerResult) {
+        print_plain(config, result);
+    }
+}
+
+pub fn print_plain(config: &Config, result: &AnalyzerResult) {
     let mut options = FormattingOptions {
         key_column_width: 0,
         count_column_width: 0,
@@ -177,10 +186,7 @@ fn calculate_count_column_width(root_prefix: &KeyPrefix) -> usize {
     biggest_count_length(root_prefix, root_prefix) + padding
 }
 
-fn biggest_count_length(
-    prefix: &KeyPrefix,
-    parent_prefix: &KeyPrefix,
-) -> usize {
+fn biggest_count_length(prefix: &KeyPrefix, parent_prefix: &KeyPrefix) -> usize {
     let display_value = display_count(prefix, parent_prefix);
     let length = display_value.len() + prefix.depth * 3;
 

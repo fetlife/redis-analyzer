@@ -1,7 +1,7 @@
+use color_eyre::eyre::Context as _;
 use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 use redis;
-use color_eyre::eyre::Context as _;
 use scc::HashMap;
 
 use std::ops::DerefMut;
@@ -11,12 +11,12 @@ use std::time::{Duration, Instant};
 use crate::config::{Config, SortOrder};
 use crate::key_prefix::KeyPrefix;
 
-pub struct Result {
+pub struct AnalyzerResult {
     pub root_prefix: KeyPrefix,
     pub took: Duration,
 }
 
-pub fn run(config: &mut Config) -> Result {
+pub fn run(config: &mut Config) -> AnalyzerResult {
     let mut root_prefix = KeyPrefix::new("", 0, config.all_keys_count, 0);
 
     let now = Instant::now();
@@ -28,7 +28,7 @@ pub fn run(config: &mut Config) -> Result {
 
     let took = now.elapsed();
 
-    Result { root_prefix, took }
+    AnalyzerResult { root_prefix, took }
 }
 
 fn analyze_count(config: &mut Config, prefix: &mut KeyPrefix) {
@@ -91,7 +91,10 @@ fn analyze_count(config: &mut Config, prefix: &mut KeyPrefix) {
                 Some(position) => unsafe { key.get_unchecked(0..position.start()) }.to_string(),
             };
 
-            frequency_map_clone.entry_sync(prefix).and_modify(|e| *e +=1 ).or_insert(1);
+            frequency_map_clone
+                .entry_sync(prefix)
+                .and_modify(|e| *e += 1)
+                .or_insert(1);
         }
     });
 
