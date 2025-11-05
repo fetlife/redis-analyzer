@@ -1,15 +1,23 @@
-use clap::{App, ArgMatches};
+use clap::builder::{Styles, styling};
+use clap::{Parser, ValueEnum};
+
+use color_eyre::Result;
+use color_eyre::eyre::Context as _;
 use regex::Regex;
-use std::process;
 
 use crate::database::Database;
+
+const CLAP_STYLING: Styles = styling::Styles::styled()
+    .header(styling::AnsiColor::Green.on_default().bold())
+    .usage(styling::AnsiColor::Green.on_default().bold())
+    .literal(styling::AnsiColor::Blue.on_default().bold())
+    .placeholder(styling::AnsiColor::Cyan.on_default());
 
 pub struct Config {
     pub databases: Vec<Database>,
     pub all_keys_count: usize,
     pub separators: String,
     pub depth: usize,
-    pub concurrency: usize,
     pub min_count_percentage: f32,
     pub progress: bool,
     pub full_keys: bool,
@@ -19,127 +27,114 @@ pub struct Config {
     pub memory_usage_samples: usize,
 }
 
+/// Analyzes keys in Redis to produce breakdown of the most frequent prefixes.
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None, styles = CLAP_STYLING)]
+struct Args {
+    /// Maximum number of hosts scanned at the same time. [default: number of logical CPUs]
+    #[arg(short, long, default_value_t = num_cpus::get())]
+    concurrency: usize,
+    /// Maximum key depth to examine.
+    #[arg(short, long, default_value_t = 999)]
+    depth: usize,
+    /// Output format. (default: plain)
+    #[arg(short, long, default_value = "plain")]
+    format: OutputFormat,
+    /// Shows full keys in result instead of just suffixes.
+    #[arg(long)]
+    full_keys: bool,
+    /// Number of samples used with memory usage redis command (this is only relevant for nested values, to sample the all of the nested values, use 0)
+    #[arg(long, default_value_t = 5)]
+    memory_usage_samples: usize,
+    /// Minimum prefix frequency in percentages for prefix to be included in the result.
+    #[arg(long, default_value_t = 1.0)]
+    min_count_percentage: f32,
+    /// Sort order.
+    #[arg(short, long, default_value = "memory_usage")]
+    order: SortOrder,
+    /// Shows progress
+    #[arg(short, long)]
+    progress: bool,
+    /// Configures how many keys are fetched at a time.
+    #[arg(long, default_value_t = 100)]
+    scan_size: usize,
+    /// List of key separators.
+    #[arg(short, long, default_value = ":/|")]
+    separators: String,
+    /// List of URLs to scan.
+    #[arg(short, long, required = true, value_delimiter = ',')]
+    urls: Vec<String>,
+}
+
 impl Config {
-    pub fn new() -> Self {
-        let yaml = load_yaml!("cli.yml");
-        let arg_matches = App::from_yaml(yaml).version(crate_version!()).get_matches();
+    pub fn new() -> Result<Self> {
+        let args = Args::parse();
 
-        let separators = arg_matches.value_of("separators").unwrap_or(":/|");
-        let depth = arg_matches
-            .value_of("depth")
-            .map_or(999, |s| s.parse().expect("depth needs to be a number"));
-        let min_count_percentage = arg_matches
-            .value_of("min_count_percentage")
-            .unwrap()
-            .parse()
-            .expect("min-prefix-frequency needs to be a number");
-
-        let databases = parse_and_build_databases(&arg_matches);
+        let databases =
+            parse_and_build_databases(&args.urls).wrap_err("failed to build databases")?;
         let all_keys_count: usize = databases
             .iter()
             .fold(0, |acc, database| acc + database.keys_count);
 
-        Self {
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(args.concurrency)
+            .build_global()
+            .wrap_err("failed to build thread pool")?;
+
+        Ok(Self {
             databases,
             all_keys_count,
-            separators: separators.to_string(),
-            depth,
-            concurrency: parse_and_configure_concurrency(&arg_matches),
-            min_count_percentage,
-            progress: arg_matches.is_present("progress"),
-            full_keys: arg_matches.is_present("full_keys"),
-            output_format: parse_output_format(&arg_matches),
-            sort_order: parse_sort_order(&arg_matches),
-            scan_size: parse_usize(&arg_matches, "scan_size"),
-            memory_usage_samples: parse_usize(&arg_matches, "memory_usage_samples"),
-        }
+            separators: args.separators.to_string(),
+            depth: args.depth,
+            min_count_percentage: args.min_count_percentage,
+            progress: args.progress,
+            full_keys: args.full_keys,
+            output_format: args.format,
+            sort_order: args.order,
+            scan_size: args.scan_size,
+            memory_usage_samples: args.memory_usage_samples,
+        })
     }
+
     pub fn separators_regex(&self) -> Regex {
         Regex::new(&format!("[{}]+", self.separators)).unwrap()
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum OutputFormat {
     Plain,
     Json,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, ValueEnum)]
+#[clap(rename_all = "snake_case")]
 pub enum SortOrder {
     KeysCount,
     MemoryUsage,
 }
 
-fn parse_output_format(arg_matches: &ArgMatches) -> OutputFormat {
-    match arg_matches.value_of("format").unwrap_or("plain") {
-        "plain" => OutputFormat::Plain,
-        "json" => OutputFormat::Json,
-        format => {
-            eprintln!("Invalid format: {}", format);
-            process::exit(1);
-        }
-    }
-}
-
-fn parse_sort_order(arg_matches: &ArgMatches) -> SortOrder {
-    match arg_matches.value_of("order").unwrap_or("memory_usage") {
-        "count" => SortOrder::KeysCount,
-        "keys_count" => SortOrder::KeysCount,
-        "size" => SortOrder::MemoryUsage,
-        "memory" => SortOrder::MemoryUsage,
-        "memory_usage" => SortOrder::MemoryUsage,
-        order => {
-            eprintln!("Invalid sort order: {}", order);
-            process::exit(1);
-        }
-    }
-}
-
-fn parse_and_configure_concurrency(arg_matches: &ArgMatches) -> usize {
-    let concurrency = arg_matches
-        .value_of("concurrency")
-        .map_or(num_cpus::get(), |s| {
-            s.parse().expect("concurrency needs to be a number")
-        });
-
-    rayon::ThreadPoolBuilder::new()
-        .num_threads(concurrency)
-        .build_global()
-        .unwrap();
-
-    concurrency
-}
-
-fn parse_and_build_databases(arg_matches: &ArgMatches) -> Vec<Database> {
-    let urls: Vec<&str> = arg_matches.value_of("urls").unwrap().split(",").collect();
-
+fn parse_and_build_databases(urls: &[String]) -> Result<Vec<Database>> {
     urls.iter()
-        .map(|host| {
-            let url = format!("redis://{}", host);
-            let client =
-                redis::Client::open(url.as_ref()).expect(&format!("creating client ({})", host));
+        .map(|url| {
+            let url = if url.contains("://") {
+                url.to_string()
+            } else {
+                format!("redis://{}", url)
+            };
+            let client = redis::Client::open(url.clone())
+                .wrap_err_with(|| format!("creating client ({})", url))?;
             let mut connection = client
                 .get_connection()
-                .expect(&format!("connecting ({})", host));
+                .wrap_err_with(|| format!("connecting ({})", url))?;
             let keys_count: usize = redis::cmd("DBSIZE")
                 .query(&mut connection)
-                .expect(&format!("getting dbsize ({})", host));
+                .wrap_err_with(|| format!("getting dbsize ({})", url))?;
 
-            Database {
-                host: host.to_string(),
-                url,
+            Ok(Database {
                 keys_count,
                 connection,
-            }
+            })
         })
-        .collect()
-}
-
-fn parse_usize(arg_matches: &ArgMatches, key: &str) -> usize {
-    arg_matches
-        .value_of(key)
-        .unwrap()
-        .parse()
-        .expect(&format!("{} needs to be a number", key.replace("_", "-")))
+        .collect::<Result<Vec<Database>>>()
 }

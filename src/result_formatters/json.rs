@@ -1,10 +1,14 @@
 use serde_json;
 
-use crate::analyzer::Result;
+use super::Formatter;
+use crate::analyzer::AnalyzerResult;
 use crate::config::Config;
 
-pub fn call(_config: &Config, result: &Result) {
-    let json = serde_json::to_string(&result.root_prefix).unwrap();
+pub struct JsonFormatter;
 
-    println!("{}", json);
+impl Formatter for JsonFormatter {
+    fn call(&self, _config: &Config, result: &AnalyzerResult) {
+        let json = serde_json::to_string(&result.root_prefix).unwrap();
+        println!("{}", json);
+    }
 }

@@ -1,14 +1,16 @@
 pub mod json;
 pub mod plain;
 
-use crate::analyzer::Result;
+use crate::analyzer::AnalyzerResult;
 use crate::config::{Config, OutputFormat};
 
-pub fn call(config: &Config, result: &Result) {
-    let formatter = match config.output_format {
-        OutputFormat::Plain => self::plain::call,
-        OutputFormat::Json => self::json::call,
-    };
+pub trait Formatter {
+    fn call(&self, config: &Config, result: &AnalyzerResult);
+}
 
-    formatter(config, result);
+pub fn get_formatter(config: &Config) -> Box<dyn Formatter> {
+    match config.output_format {
+        OutputFormat::Plain => Box::new(plain::PlainFormatter),
+        OutputFormat::Json => Box::new(json::JsonFormatter),
+    }
 }

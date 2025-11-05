@@ -1,38 +1,38 @@
-use frequency::Frequency;
-use frequency_hashmap::HashMapFrequency;
+use color_eyre::eyre::Context as _;
 use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 use redis;
+use scc::HashMap;
+
 use std::ops::DerefMut;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant};
 
 use crate::config::{Config, SortOrder};
 use crate::key_prefix::KeyPrefix;
 
-pub struct Result {
+pub struct AnalyzerResult {
     pub root_prefix: KeyPrefix,
     pub took: Duration,
 }
 
-pub fn run(config: &mut Config) -> Result {
+pub fn run(config: &mut Config) -> AnalyzerResult {
     let mut root_prefix = KeyPrefix::new("", 0, config.all_keys_count, 0);
 
-    let now = SystemTime::now();
+    let now = Instant::now();
 
     analyze_count(config, &mut root_prefix);
     analyze_memory_usage(config, &mut root_prefix);
-    reorder(&config, &mut root_prefix);
-    backfill_other_keys(&config, &mut root_prefix);
+    reorder(config, &mut root_prefix);
+    backfill_other_keys(config, &mut root_prefix);
 
-    let took = now.elapsed().unwrap();
+    let took = now.elapsed();
 
-    Result { root_prefix, took }
+    AnalyzerResult { root_prefix, took }
 }
 
 fn analyze_count(config: &mut Config, prefix: &mut KeyPrefix) {
-    let frequency: HashMapFrequency<String> = HashMapFrequency::new();
-    let frequency_mutex = Arc::new(Mutex::new(frequency));
+    let frequency_map = Arc::new(HashMap::new());
     let separator = config.separators_regex();
     let bar = if config.progress {
         println!("Scanning {}", prefix.value,);
@@ -44,9 +44,14 @@ fn analyze_count(config: &mut Config, prefix: &mut KeyPrefix) {
     let scan_size = config.scan_size;
 
     config.databases.par_iter_mut().for_each(|database| {
-        bar.set_style(ProgressStyle::default_bar().template(
-            "[{elapsed_precise}] {wide_bar} {pos}/{len} ({percent}%) [ETA: {eta_precise}]",
-        ).expect("Failed to set progress bar style"));
+        let frequency_map_clone = frequency_map.clone();
+        bar.set_style(
+            ProgressStyle::default_bar()
+                .template(
+                    "[{elapsed_precise}] {wide_bar} {pos}/{len} ({percent}%) [ETA: {eta_precise}]",
+                )
+                .expect("Failed to set progress bar style"),
+        );
 
         let mut scan_command = redis::cmd("SCAN")
             .cursor_arg(0)
@@ -66,7 +71,15 @@ fn analyze_count(config: &mut Config, prefix: &mut KeyPrefix) {
             .iter(&mut database.connection)
             .expect("running scan");
 
-        for (i, key) in iter.enumerate() {
+        for (i, key_result) in iter.enumerate() {
+            let key = match key_result.wrap_err("failed to get key") {
+                Ok(key) => key,
+                Err(e) => {
+                    eprintln!("failed to get key: {}", e);
+                    continue;
+                }
+            };
+
             if i % 10_000 == 0 && i > 0 {
                 bar.inc(10_000);
             }
@@ -78,13 +91,16 @@ fn analyze_count(config: &mut Config, prefix: &mut KeyPrefix) {
                 Some(position) => unsafe { key.get_unchecked(0..position.start()) }.to_string(),
             };
 
-            frequency_mutex.lock().unwrap().increment(prefix);
+            frequency_map_clone
+                .entry_sync(prefix)
+                .and_modify(|e| *e += 1)
+                .or_insert(1);
         }
     });
 
     bar.finish();
 
-    for (prefix_value, count) in frequency_mutex.lock().unwrap().iter() {
+    frequency_map.iter_sync(|prefix_value, count| {
         let mut child = KeyPrefix::new(prefix_value, prefix.depth + 1, *count, 0);
 
         let child_absolute_frequency = *count as f32 / config.all_keys_count as f32 * 100.;
@@ -93,7 +109,8 @@ fn analyze_count(config: &mut Config, prefix: &mut KeyPrefix) {
             analyze_count(config, &mut child);
             prefix.children.push(child);
         }
-    }
+        true
+    });
 }
 
 fn analyze_memory_usage(config: &mut Config, prefix: &mut KeyPrefix) {
@@ -106,9 +123,11 @@ fn analyze_memory_usage(config: &mut Config, prefix: &mut KeyPrefix) {
     };
 
     bar.set_style(
-        ProgressStyle::default_bar().template(
-            "[{elapsed_precise}] {wide_bar} {pos}/{len} ({percent}%) [ETA: {eta_precise}]",
-        ).expect("failed to set progress bar style"),
+        ProgressStyle::default_bar()
+            .template(
+                "[{elapsed_precise}] {wide_bar} {pos}/{len} ({percent}%) [ETA: {eta_precise}]",
+            )
+            .expect("failed to set progress bar style"),
     );
 
     let scan_size = config.scan_size;

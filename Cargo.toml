@@ -1,21 +1,21 @@
 [package]
 name = "redis-analyzer"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["FetLife <dev@fetlife.com>"]
 repository = "https://github.com/fetlife/redis-analyzer"
 license = "MIT"
 description = "Analyzes keys in Redis to produce breakdown of the most frequent prefixes."
-edition = "2021"
+edition = "2024"
 
 [dependencies]
-clap = { version = "2.33", features = ["yaml"] }
-frequency = "^1.0"
-frequency-hashmap = "^1.1"
-humantime = "^2.1"
-indicatif = "^0.17"
-num_cpus = "^1.13"
-rayon = "^1.5"
-regex = "^1.6"
-redis = "^0.21"
+clap = { version = "4.5", features = ["derive"] }
+color-eyre = "0.6.5"
+indicatif = "^0.18"
+num_cpus = "^1.17"
+rayon = "^1.11"
+redis = { version = "^0.32", features = ["safe_iterators", "tls-rustls"] }
+regex = "^1.12"
+rustls = { version = "0.23", features = ["ring", "std"], default-features = false }
+scc = "3.3.4"
 serde = { version = "^1.0", features = ["derive"] }
 serde_json = "^1.0"

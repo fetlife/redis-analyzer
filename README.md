@@ -31,36 +31,50 @@ Alternatively, to build it yourself, clone the repository and run `cargo build -
 ```text
 # redis-analyzer --help
 
-redis-analyzer 0.2.0
 Analyzes keys in Redis to produce breakdown of the most frequent prefixes.
 
-USAGE:
-    redis-analyzer [FLAGS] [OPTIONS] --urls <URL1,URL2>
+Usage: redis-analyzer [OPTIONS] --urls <URLS>
 
-FLAGS:
-        --full-keys    Shows full keys in result instead of just suffixes.
-    -h, --help         Prints help information
-        --progress     Shows progress
-    -V, --version      Prints version information
-
-OPTIONS:
-    -c, --concurrency <CONCURRENCY>
-            Maximum number of hosts scanned at the same time. [default: number of logical CPUs]
-
-    -d, --depth <DEPTH>                                         Maximum key depth to examine.
-    -f, --format <plain|json>                                   Output format. (default: plain)
-        --min-count-percentage <MIN_PREFIX_COUNT_PERCENTAGE>
-            Minimum prefix frequency in percentages for prefix to be included in the result. [default: 1.0]
-
-        --order <count|memory>                                  Sort order. [default: memory]
-        --scan-size <SCAN_SIZE>
-            Configures how many keys are fetched at a time. [default: 100]
-
-    -s, --separators <SEPARATORS>                               List of key separators. [default: :/|]
-    -u, --urls <URL1,URL2>                                      List of URLs to scan.
+Options:
+  -c, --concurrency <CONCURRENCY>
+          Maximum number of hosts scanned at the same time. [default: number of logical CPUs] [default: 10]
+  -d, --depth <DEPTH>
+          Maximum key depth to examine [default: 999]
+  -f, --format <FORMAT>
+          Output format. (default: plain) [default: plain] [possible values: plain, json]
+      --full-keys
+          Shows full keys in result instead of just suffixes
+      --memory-usage-samples <MEMORY_USAGE_SAMPLES>
+          Number of samples used with memory usage redis command (this is only relevant for nested values, to sample the all of the nested values, use 0) [default: 5]
+      --min-count-percentage <MIN_COUNT_PERCENTAGE>
+          Minimum prefix frequency in percentages for prefix to be included in the result [default: 1]
+  -o, --order <ORDER>
+          Sort order [default: memory_usage] [possible values: keys_count, memory_usage]
+  -p, --progress
+          Shows progress
+      --scan-size <SCAN_SIZE>
+          Configures how many keys are fetched at a time [default: 100]
+  -s, --separators <SEPARATORS>
+          List of key separators [default: :/|]
+  -u, --urls <URLS>
+          List of URLs to scan
+  -h, --help
+          Print help
+  -V, --version
+          Print version
 ```
 
 ## Examples
+
+Example URLs:
+
+* Basic: `redis://127.0.0.1:6379`
+* Username & Password: `redis://user:password@127.0.0.1:6379`
+* Password only: `redis://:password@127.0.0.1:6379`
+* Specifying DB: `redis://127.0.0.1:6379/0`
+* Enabling TLS: `rediss://127.0.0.1:6379`
+* Enabling Insecure TLS: `rediss://127.0.0.1:6379/#insecure`
+* Enabling RESP3: `redis://127.0.0.1:6379/?protocol=resp3`
 
 Example output:
 
