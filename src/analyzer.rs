@@ -75,7 +75,7 @@ fn analyze_count(config: &mut Config, prefix: &mut KeyPrefix) {
             let key = match key_result.wrap_err("failed to get key") {
                 Ok(key) => key,
                 Err(e) => {
-                    eprintln!("failed to get key: {}", e);
+                    eprintln!("Error retrieving key: {}", e);
                     continue;
                 }
             };
@@ -101,9 +101,13 @@ fn analyze_count(config: &mut Config, prefix: &mut KeyPrefix) {
     bar.finish();
 
     frequency_map.iter_sync(|prefix_value, count| {
-        let mut child = KeyPrefix::new(prefix_value, prefix.depth + 1, *count, 0);
-
+        let mut child = KeyPrefix::new(prefix_value.as_str(), prefix.depth + 1, *count, 0);        
         let child_absolute_frequency = *count as f32 / config.all_keys_count as f32 * 100.;
+
+        // Stop recursion if the prefix does not change or count is zero
+        if *prefix_value == prefix.value || prefix_value.is_empty() || *count == 0 {
+            return true;
+        }
 
         if prefix.depth < config.depth && child_absolute_frequency > config.min_count_percentage {
             analyze_count(config, &mut child);
