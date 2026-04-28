@@ -70,11 +70,11 @@ jobs:
       - name: Verify mold linker was used (Linux)
         if: runner.os == 'Linux'
         run: |
-          BINARY="target/${{ matrix.platform.target }}/redis-analyzer"
+          BINARY="target/release/redis-analyzer"
           readelf -p .comment "$BINARY" | grep -i mold && echo "✓ mold linker confirmed" || echo "✗ mold not detected"
 
       - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
           name: redis-analyzer-${{ matrix.platform.target }}
-          path: target/${{ matrix.platform.target }}/redis-analyzer
+          path: target/release/redis-analyzer
