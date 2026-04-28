@@ -42,7 +42,7 @@ pub fn print_plain(config: &Config, result: &AnalyzerResult) {
         "",
         "",
         indent = options.key_column_width,
-        indenx = options.count_column_width - 9,
+        indenx = options.count_column_width - 10,
     );
 
     print_tree(
