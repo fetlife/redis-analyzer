@@ -10,13 +10,71 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-
+  test:
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --verbose
     - name: Run tests
       run: cargo test --verbose
+
+  build:
+    needs:
+      - test
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - os-name: Linux-x86_64
+            runs-on: ubuntu-24.04-8core
+            target: x86_64-unknown-linux-gnu
+
+          - os-name: Linux-aarch64
+            runs-on: ubuntu-24.04-8core-arm64
+            target: aarch64-unknown-linux-gnu
+
+          - os-name: macOS-aarch64
+            runs-on: macos-latest
+            target: aarch64-apple-darwin
+
+    runs-on:
+      labels: ${{ matrix.platform.runs-on }}
+
+    env:
+      CARGO_TERM_COLOR: always
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install mold linker (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          LATEST_VERSION=$(curl -fsSL https://api.github.com/repos/rui314/mold/releases/latest | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
+          ARCH=$(uname -m)
+          curl -fsSL "https://github.com/rui314/mold/releases/download/v${LATEST_VERSION}/mold-${LATEST_VERSION}-${ARCH}-linux.tar.gz" -o mold.tar.gz
+          tar -xzf mold.tar.gz
+          sudo cp -r "mold-${LATEST_VERSION}-${ARCH}-linux"/* /usr/local/
+          rm -rf mold.tar.gz "mold-${LATEST_VERSION}-${ARCH}-linux"
+          mold --version
+
+      - name: Build Binary
+        uses: gdubicki/actions-rust-cross@v1
+        env:
+          RUSTFLAGS: ${{ runner.os == 'Linux' && '-C link-arg=-fuse-ld=mold' || '' }}
+        with:
+          command: build
+          target: ${{ matrix.platform.target }}
+          args: "--locked --profile release"
+
+      - name: Verify mold linker was used (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          BINARY="target/${{ matrix.platform.target }}/redis-analyzer"
+          readelf -p .comment "$BINARY" | grep -i mold && echo "✓ mold linker confirmed" || echo "✗ mold not detected"
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: redis-analyzer-${{ matrix.platform.target }}
+          path: target/${{ matrix.platform.target }}/redis-analyzer
