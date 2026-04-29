@@ -128,3 +128,9 @@ ALL ---------------------14971 (100.00%) --------7.29MB (100.00%)
 ├─ counts ---------------├─ 120 (0.80%) ---------├─ 9.68KB (0.13%)
 └─ [other] --------------└─ 192 (1.28%) ---------└─ 840.05KB (11.25%)
 ```
+
+# Making a release
+
+1. Uptick version in `Cargo.toml`.
+2. Create a tag: `git tag v0.4.1`
+3. Push the tag: `git push origin v0.4.1`
