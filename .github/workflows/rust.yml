@@ -27,16 +27,12 @@ jobs:
       matrix:
         platform:
           - os-name: Linux-x86_64
-            runs-on: ubuntu-24.04-8core
+            runs-on: self-hosted, fetlife-ci
             target: x86_64-unknown-linux-gnu
 
           - os-name: Linux-aarch64
-            runs-on: ubuntu-24.04-8core-arm64
+            runs-on: self-hosted, fetlife-ci
             target: aarch64-unknown-linux-gnu
-
-          - os-name: macOS-aarch64
-            runs-on: macos-latest
-            target: aarch64-apple-darwin
 
     runs-on:
       labels: ${{ matrix.platform.runs-on }}
@@ -80,9 +76,33 @@ jobs:
           name: redis-analyzer-${{ matrix.platform.target }}
           path: target/${{ matrix.platform.target }}/release/redis-analyzer
 
+  build-macos:
+    needs:
+      - test
+    if: startsWith(github.ref, 'refs/tags/')
+
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Binary
+        uses: gdubicki/actions-rust-cross@v1
+        with:
+          command: build
+          target: aarch64-apple-darwin
+          args: "--locked --profile release"
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: redis-analyzer-aarch64-apple-darwin
+          path: target/aarch64-apple-darwin/release/redis-analyzer
+
   github-release:
     needs:
       - build
+      - build-macos
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
 
