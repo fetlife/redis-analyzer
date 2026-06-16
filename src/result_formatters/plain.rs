@@ -38,11 +38,11 @@ pub fn print_plain(config: &Config, result: &AnalyzerResult) {
 
     println!("Took {:.2?}", result.took);
     println!(
-        "{:indent$}Keys Count{:indenx$}Memory Usage",
+        "{:indent$}Keys Count{:count_indent$}Memory Usage",
         "",
         "",
         indent = options.key_column_width,
-        indenx = options.count_column_width - 10,
+        count_indent = options.count_column_width - 10,
     );
 
     print_tree(
