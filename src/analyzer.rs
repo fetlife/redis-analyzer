@@ -101,7 +101,7 @@ fn analyze_count(config: &mut Config, prefix: &mut KeyPrefix) {
     bar.finish();
 
     frequency_map.iter_sync(|prefix_value, count| {
-        let mut child = KeyPrefix::new(prefix_value.as_str(), prefix.depth + 1, *count, 0);        
+        let mut child = KeyPrefix::new(prefix_value.as_str(), prefix.depth + 1, *count, 0);
         let child_absolute_frequency = *count as f32 / config.all_keys_count as f32 * 100.;
 
         // Stop recursion if the prefix does not change or count is zero
@@ -165,14 +165,20 @@ fn analyze_memory_usage(config: &mut Config, prefix: &mut KeyPrefix) {
                     .clone();
             }
 
-            let memory_usages: Vec<usize> = memory_usage_command
+            let memory_usages: Vec<Option<usize>> = memory_usage_command
                 .query(&mut database.connection)
                 .expect("memory usage command");
 
             bar.inc(keys.len() as u64);
 
-            for (key, memory_usage) in keys.iter().zip(memory_usages.iter()) {
-                record_memory_usage(prefix_mutex.lock().unwrap().deref_mut(), key, *memory_usage);
+            for (key, usage) in keys.iter().zip(memory_usages.iter()) {
+                if let Some(memory_usage) = usage {
+                    record_memory_usage(
+                        prefix_mutex.lock().unwrap().deref_mut(),
+                        key,
+                        *memory_usage,
+                    );
+                }
             }
 
             if cursor == 0 {
