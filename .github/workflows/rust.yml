@@ -12,7 +12,7 @@ env:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
     - uses: actions/checkout@v4
     - name: Run tests
@@ -83,7 +83,7 @@ jobs:
   github-release:
     needs:
       - build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     if: startsWith(github.ref, 'refs/tags/')
 
     strategy:
